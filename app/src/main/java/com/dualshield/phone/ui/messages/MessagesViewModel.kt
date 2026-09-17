@@ -112,19 +112,19 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
     fun refresh(force: Boolean = false) {
         viewModelScope.launch {
             if (_state.value.threads.isEmpty()) _state.update { it.copy(loading = true) }
-            val threads = container.smsRepository.threads(force = force) { subId ->
+            // One cached index, rather than a content-provider query per conversation. It is
+            // resolved before the threads are built so each row carries a finished sender
+            // identity — name, type and photo — instead of being patched up afterwards.
+            val contacts = container.contactsRepository.contactIndex()
+            val threads = container.smsRepository.threads(
+                force = force,
+                contacts = contacts,
+            ) { subId ->
                 container.simRepository.slotForSubscriptionId(subId)
-            }
-            // One cached index, rather than a content-provider query per conversation.
-            val nameIndex = container.contactsRepository.cachedNameIndex()
-            val named = threads.map { thread ->
-                thread.copy(
-                    displayName = nameIndex[container.contactsRepository.matchKey(thread.address)],
-                )
             }
             _state.update {
                 it.copy(
-                    threads = named,
+                    threads = threads,
                     hasPermission = container.smsRepository.hasReadPermission(),
                     loading = false,
                 )

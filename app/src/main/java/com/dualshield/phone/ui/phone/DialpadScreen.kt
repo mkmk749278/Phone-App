@@ -119,6 +119,7 @@ fun DialpadScreen(
                                 ContactAvatar(
                                     contact.displayName,
                                     contact.primaryNumber,
+                                    photoUri = contact.photoUri,
                                     size = 38.dp,
                                 )
                             },

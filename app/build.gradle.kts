@@ -160,6 +160,9 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
+    // Contact photo loading and caching. Core artifact only — no network fetcher.
+    implementation(libs.coil.compose)
+
     // Installs the bundled baseline profile so the startup path is AOT-compiled on first
     // run rather than interpreted until ART gets round to JIT-ing it.
     implementation(libs.androidx.profileinstaller)

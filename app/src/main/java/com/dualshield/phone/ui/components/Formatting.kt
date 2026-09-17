@@ -1,7 +1,6 @@
 package com.dualshield.phone.ui.components
 
-import com.dualshield.phone.core.model.NumberKind
-import com.dualshield.phone.core.number.PhoneNumberNormalizer
+import com.dualshield.phone.core.number.PhoneNumberFormatter
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -69,21 +68,13 @@ object Formatting {
     }
 
     /**
-     * Groups an Indian number the way people read it, and leaves anything else alone
-     * rather than guessing at a foreign grouping convention.
+     * The display spelling of a number.
+     *
+     * Delegates to [PhoneNumberFormatter] so that UI and non-UI code cannot drift apart:
+     * the blocked-call grouping, the Recents list and Call Details all read the same string
+     * for the same number.
      */
-    fun displayNumber(raw: String?): String {
-        if (raw.isNullOrBlank()) return "Private number"
-        val info = PhoneNumberNormalizer.normalize(raw)
-        return when (info.kind) {
-            NumberKind.INDIAN_SUBSCRIBER ->
-                "+91 ${info.nationalDigits.take(5)} ${info.nationalDigits.drop(5)}"
-            NumberKind.INDIAN_SERVICE_CODE -> info.nationalDigits
-            NumberKind.INTERNATIONAL -> "+${info.normalized}"
-            NumberKind.PRIVATE -> "Private number"
-            NumberKind.MALFORMED -> raw
-        }
-    }
+    fun displayNumber(raw: String?): String = PhoneNumberFormatter.display(raw)
 
     /** The two-or-three letter monogram used on every avatar. */
     fun initials(name: String?, fallbackNumber: String?): String {

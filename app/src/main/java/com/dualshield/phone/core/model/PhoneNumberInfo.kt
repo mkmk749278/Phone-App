@@ -11,6 +11,17 @@ enum class NumberKind {
     /** A number carrying a country code other than +91. */
     INTERNATIONAL,
 
+    /**
+     * An alphanumeric sender ID, as used by banks and operators for SMS: `AXISBK`, `JIO`,
+     * `VM-HDFCBK`.
+     *
+     * This is deliberately distinct from [PRIVATE]. These senders were previously folded
+     * into [PRIVATE] and therefore surfaced to the user as "Private number", which is wrong
+     * twice over: nothing is withheld, and the sender is usually a business the user
+     * recognises by name.
+     */
+    ALPHANUMERIC_SENDER,
+
     /** The network gave us no number at all (CLIR / withheld). */
     PRIVATE,
 
@@ -35,8 +46,18 @@ data class PhoneNumberInfo(
     val countryCode: String?,
     val kind: NumberKind,
     val matchCandidates: List<String>,
+    /**
+     * The cleaned-up sender token for an [NumberKind.ALPHANUMERIC_SENDER], such as `AXISBK`
+     * from `VM-AXISBK`. Null for everything else.
+     *
+     * Held separately from [normalized] on purpose: [normalized] is the digit string the
+     * rule engine matches patterns against, and putting letters in it would let a numeric
+     * rule reason about a value that has no digits at all.
+     */
+    val senderId: String? = null,
 ) {
     val isPrivate: Boolean get() = kind == NumberKind.PRIVATE
     val isInternational: Boolean get() = kind == NumberKind.INTERNATIONAL
+    val isAlphanumericSender: Boolean get() = kind == NumberKind.ALPHANUMERIC_SENDER
     val hasDigits: Boolean get() = normalized.isNotEmpty()
 }

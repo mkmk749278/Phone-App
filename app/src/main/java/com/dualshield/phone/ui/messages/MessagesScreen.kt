@@ -91,7 +91,13 @@ fun MessagesScreen(
                         title = thread.displayName?.takeIf { it.isNotBlank() }
                             ?: Formatting.displayNumber(thread.address),
                         subtitle = thread.snippet,
-                        leading = { ContactAvatar(thread.displayName, thread.address) },
+                        leading = {
+                            ContactAvatar(
+                                thread.displayName,
+                                thread.address,
+                                photoUri = thread.sender.photoUri,
+                            )
+                        },
                         trailing = {
                             Text(
                                 text = Formatting.listTimestamp(thread.timestamp),

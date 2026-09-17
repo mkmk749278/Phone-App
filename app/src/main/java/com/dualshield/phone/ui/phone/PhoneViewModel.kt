@@ -118,7 +118,7 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
             CallDetails(
                 number = number,
                 contact = state.contacts.firstOrNull { contact ->
-                    contact.phoneNumbers.any { it.filter(Char::isDigit).endsWith(digits) }
+                    contact.phoneNumbers.any { it.raw.filter(Char::isDigit).endsWith(digits) }
                 },
                 history = state.recents.filter {
                     it.number.filter(Char::isDigit).endsWith(digits)
@@ -166,10 +166,21 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             // Only show the loading state when there is nothing cached to show instead.
             if (_state.value.recents.isEmpty()) _state.update { it.copy(loading = true) }
-            val recents = container.callLogRepository.recentCalls(force = force) { accountId ->
-                container.simRepository.slotForPhoneAccountId(accountId)
-            }
-            val contacts = container.contactsRepository.loadContacts(force = force)
+            // Contacts first: Recents resolves each caller's name and photo through this
+            // index as it is built, so a row never renders with a number and then pops to a
+            // name a frame later.
+            val contactIndex = container.contactsRepository.contactIndex(force = force)
+            val contacts = container.contactsRepository.cachedContacts
+            val recents = container.callLogRepository.recentCalls(
+                force = force,
+                contacts = contactIndex,
+                slotForAccountId = { accountId ->
+                    container.simRepository.slotForPhoneAccountId(accountId)
+                },
+                subscriptionIdForSlot = { slot ->
+                    container.simRepository.subscriptionIdForSlot(slot).takeIf { it >= 0 }
+                },
+            )
             _state.update {
                 it.copy(
                     recents = recents,

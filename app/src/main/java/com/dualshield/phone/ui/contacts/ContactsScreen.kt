@@ -80,7 +80,13 @@ fun ContactsScreen(
                     AppListRow(
                         title = contact.displayName,
                         subtitle = Formatting.displayNumber(contact.primaryNumber),
-                        leading = { ContactAvatar(contact.displayName, contact.primaryNumber) },
+                        leading = {
+                            ContactAvatar(
+                                contact.displayName,
+                                contact.primaryNumber,
+                                photoUri = contact.photoUri,
+                            )
+                        },
                         onClick = { contact.primaryNumber?.let(onOpenContact) },
                     )
                 }
