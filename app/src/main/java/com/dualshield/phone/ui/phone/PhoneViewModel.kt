@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
 import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.number.PhoneNumberFormatter
 import com.dualshield.phone.core.search.DialerIndex
 import com.dualshield.phone.core.search.DialerResult
 import com.dualshield.phone.data.system.Contact
@@ -59,6 +60,15 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
     private val query = MutableStateFlow("")
     private val dialInput = MutableStateFlow("")
     private val detailNumber = MutableStateFlow("")
+
+    /**
+     * Bumped after a block or unblock so the details screen re-reads the rule state.
+     *
+     * The rules live in Room and the details flow is a plain combine over in-memory state;
+     * this is the nudge that keeps the Block/Unblock row honest without observing the whole
+     * rule table for one number.
+     */
+    private val blockedRefresh = MutableStateFlow(0)
 
 
     /**
@@ -121,29 +131,36 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
         val number: String = "",
         val contact: Contact? = null,
         val history: List<RecentCall> = emptyList(),
-    )
+        /** True when the user's own block covers this number on at least one SIM. */
+        val isBlocked: Boolean = false,
+    ) {
+        val photoUri: String? get() = contact?.photoUri
+        val contactId: Long? get() = contact?.id
+    }
 
     /**
      * Resolved off the main thread, instead of scanning the call log inside the composable
      * body on every recomposition as the first version did.
      */
     val callDetails: StateFlow<CallDetails> =
-        combine(_state, detailNumber) { state, number ->
+        combine(_state, detailNumber, blockedRefresh) { state, number, _ ->
             if (number.isBlank()) return@combine CallDetails()
-            val digits = number.filter { it.isDigit() }.takeLast(10)
-            if (digits.isEmpty()) return@combine CallDetails(number)
+            val key = PhoneNumberFormatter.matchKey(number)
+            if (key.isEmpty()) return@combine CallDetails(number)
             CallDetails(
                 number = number,
                 contact = state.contacts.firstOrNull { contact ->
-                    contact.phoneNumbers.any { it.raw.filter(Char::isDigit).endsWith(digits) }
+                    contact.phoneNumbers.any { it.matchKey == key }
                 },
-                history = state.recents.filter {
-                    it.number.filter(Char::isDigit).endsWith(digits)
-                },
+                history = state.recents.filter { it.canonicalNumber.isNotEmpty() && it.matches(key) },
+                isBlocked = container.ruleRepository.userBlockRulesFor(number).isNotEmpty(),
             )
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CallDetails())
+
+    private fun RecentCall.matches(key: String): Boolean =
+        PhoneNumberFormatter.matchKey(number) == key
 
     fun openDetails(number: String) {
         detailNumber.value = number
@@ -232,8 +249,16 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
         dialInput.value = value
     }
 
-    fun call(number: String) {
-        val slot = _state.value.selectedSlot
+    fun call(number: String) = call(number, _state.value.selectedSlot)
+
+    /**
+     * Places a call on a specific SIM.
+     *
+     * The slot is passed explicitly rather than read from the selection, because the action
+     * sheet and Call details offer a line per SIM: the user picked a line by pressing that
+     * button, and it must be the one used.
+     */
+    fun call(number: String, slot: Int?) {
         when (val result = container.callPlacer.placeCall(number, slot)) {
             is CallPlacer.Result.Placed -> {
                 // The new call will not be in the log yet; make sure we re-read once it is.
@@ -258,6 +283,7 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
                     now = System.currentTimeMillis(),
                 )
             }.onSuccess {
+                blockedRefresh.update { it + 1 }
                 _state.update { it.copy(message = "Blocked on ${scopeLabel(scope)}") }
             }.onFailure {
                 _state.update { it.copy(message = "That number couldn't be blocked.") }
@@ -281,6 +307,31 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
     }
+
+    /** Removes the user's own block on a number. Broader rules are left alone. */
+    fun unblockNumber(number: String) {
+        viewModelScope.launch {
+            runCatching { container.ruleRepository.unblockNumber(number) }
+                .onSuccess { removed ->
+                    blockedRefresh.update { it + 1 }
+                    _state.update {
+                        it.copy(
+                            message = if (removed > 0) {
+                                "Unblocked"
+                            } else {
+                                "This number is blocked by a Shield rule. Manage it in Settings."
+                            },
+                        )
+                    }
+                }
+                .onFailure {
+                    _state.update { it.copy(message = "That number couldn't be unblocked.") }
+                }
+        }
+    }
+
+    /** Shows a one-off message raised by a screen, such as a failed hand-off to another app. */
+    fun showMessage(text: String) = _state.update { it.copy(message = text) }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
 

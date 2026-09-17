@@ -158,6 +158,37 @@ class RuleRepository(
         )
     }
 
+    /**
+     * The user block rules covering [rawNumber], across every SIM scope.
+     *
+     * Used to answer "is this blocked?" for a single number without walking the whole rule
+     * set, and to undo exactly what [blockNumber] created.
+     */
+    suspend fun userBlockRulesFor(rawNumber: String): List<CallRuleEntity> {
+        val normalized = PhoneNumberNormalizer.normalizedOrEmpty(rawNumber)
+        if (normalized.isEmpty()) return emptyList()
+        return SimScope.entries.mapNotNull { scope ->
+            ruleDao.getByStableId("user-block-$normalized-${scope.name}")
+        }.filter { it.enabled }
+    }
+
+    /**
+     * Removes the user's own block on [rawNumber].
+     *
+     * Only rules this app created from a Block action are touched: a rule from the India
+     * pack or one the user wrote by hand is left alone, because deleting someone's carefully
+     * written rule as a side effect of an Unblock tap would be a nasty surprise. When a
+     * blocked number is still blocked afterwards, a broader rule is the reason, and the
+     * Shield screens are where that is managed.
+     *
+     * @return how many rules were removed.
+     */
+    suspend fun unblockNumber(rawNumber: String): Int {
+        val rules = userBlockRulesFor(rawNumber)
+        rules.forEach { ruleDao.delete(it) }
+        return rules.size
+    }
+
     // ---------------------------------------------------------------- allowlist
 
     /**
