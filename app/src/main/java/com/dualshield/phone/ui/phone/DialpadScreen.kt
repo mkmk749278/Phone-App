@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,14 +33,22 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.dualshield.phone.data.system.Contact
+import com.dualshield.phone.core.search.DialerResult
 import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.ContactAvatar
 import com.dualshield.phone.ui.components.DetailHeader
-import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimChipRow
 import com.dualshield.phone.ui.components.VerticalSpacer
+
+/**
+ * The height of the search-results area above the keypad.
+ *
+ * Fixed on purpose. A results list that grows and shrinks with the query moves every key
+ * underneath it, so the second digit of a number lands somewhere the first one did not —
+ * which is the single most jarring thing a dialer can do.
+ */
+private val RESULTS_AREA_HEIGHT = 196.dp
 
 private data class DialKey(val digit: Char, val letters: String? = null)
 
@@ -66,7 +76,7 @@ private val DIAL_KEYS = listOf(
 @Composable
 fun DialpadScreen(
     state: PhoneViewModel.UiState,
-    suggestions: List<Contact>,
+    suggestions: List<DialerResult>,
     onDigit: (Char) -> Unit,
     onZeroLongPress: () -> Unit,
     onBackspace: () -> Unit,
@@ -108,25 +118,37 @@ fun DialpadScreen(
                     },
             )
 
-            if (suggestions.isNotEmpty()) {
-                VerticalSpacer(8.dp)
-                SectionCard {
-                    suggestions.forEach { contact ->
-                        AppListRow(
-                            title = contact.displayName,
-                            subtitle = Formatting.displayNumber(contact.primaryNumber),
-                            leading = {
-                                ContactAvatar(
-                                    contact.displayName,
-                                    contact.primaryNumber,
-                                    photoUri = contact.photoUri,
-                                    size = 38.dp,
+            // The results area is a fixed slot, not a block that pushes the keypad around.
+            // Its height never changes with the number of results, so the keys stay exactly
+            // where the user's thumb left them while the list above fills and empties.
+            VerticalSpacer(8.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(RESULTS_AREA_HEIGHT),
+            ) {
+                if (suggestions.isNotEmpty()) {
+                    SectionCard {
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(
+                                items = suggestions,
+                                key = { "${it.contact.id}:${it.number.matchKey}" },
+                            ) { result ->
+                                AppListRow(
+                                    title = result.contact.displayName,
+                                    subtitle = result.number.display,
+                                    leading = {
+                                        ContactAvatar(
+                                            result.contact.displayName,
+                                            result.number.raw,
+                                            photoUri = result.contact.photoUri,
+                                            size = 38.dp,
+                                        )
+                                    },
+                                    onClick = { onPickSuggestion(result.number.raw) },
                                 )
-                            },
-                            onClick = {
-                                contact.primaryNumber?.let(onPickSuggestion)
-                            },
-                        )
+                            }
+                        }
                     }
                 }
             }

@@ -274,49 +274,4 @@ class ContactsRepository(private val context: Context) {
 
     /** The comparison key used by [buildIndex]; also handy for matching a single number. */
     fun matchKey(number: String?): String = PhoneNumberFormatter.matchKey(number)
-
-    /**
-     * Local search over name and number.
-     *
-     * Deliberately simple: substring on the name, digit-substring on the number. The real
-     * T9 index, result ranking and dedup land with the dialer rebuild; this keeps the
-     * Contacts tab working against the new number model in the meantime.
-     */
-    fun search(contacts: List<Contact>, query: String): List<Contact> {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) return contacts
-        val digits = trimmed.filter { it.isDigit() }
-        val lowered = trimmed.lowercase()
-        return contacts.filter { contact ->
-            contact.displayName.lowercase().contains(lowered) ||
-                (
-                    digits.isNotEmpty() &&
-                        contact.phoneNumbers.any {
-                            it.raw.filter(Char::isDigit).contains(digits)
-                        }
-                    ) ||
-                (digits.isNotEmpty() && t9Matches(contact.displayName, digits))
-        }
-    }
-
-    /** Maps each letter to its keypad digit so "726" finds "Ravi". */
-    private fun t9Matches(name: String, digits: String): Boolean {
-        val encoded = buildString {
-            for (ch in name.lowercase()) {
-                when (ch) {
-                    in 'a'..'c' -> append('2')
-                    in 'd'..'f' -> append('3')
-                    in 'g'..'i' -> append('4')
-                    in 'j'..'l' -> append('5')
-                    in 'm'..'o' -> append('6')
-                    in 'p'..'s' -> append('7')
-                    in 't'..'v' -> append('8')
-                    in 'w'..'z' -> append('9')
-                    else -> append(' ')
-                }
-            }
-        }
-        return encoded.split(' ').any { it.isNotEmpty() && it.startsWith(digits) } ||
-            encoded.replace(" ", "").contains(digits)
-    }
 }

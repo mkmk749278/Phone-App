@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
+import com.dualshield.phone.core.search.DialerIndex
 import com.dualshield.phone.data.system.Contact
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -53,10 +54,19 @@ class ContactsViewModel(private val container: AppContainer) : ViewModel() {
      */
     val visibleContacts: StateFlow<List<Contact>> =
         combine(
-            _state.map { it.contacts }.distinctUntilChanged(),
+            _state.map { it.contacts }.distinctUntilChanged().map(DialerIndex::build),
             query.debounce(120L).distinctUntilChanged(),
-        ) { contacts, text ->
-            if (text.isBlank()) contacts else container.contactsRepository.search(contacts, text)
+            _state.map { it.contacts }.distinctUntilChanged(),
+        ) { index, text, contacts ->
+            if (text.isBlank()) {
+                contacts
+            } else {
+                // The same index and the same ranking the dialer uses, so a name searched
+                // here and dialled there produces the same order.
+                index.search(text, limit = Int.MAX_VALUE)
+                    .map { it.contact }
+                    .distinctBy { it.id }
+            }
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
