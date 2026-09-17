@@ -171,30 +171,18 @@ fun InCallScreen(
 
             Box(modifier = Modifier.weight(1f))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (call.isRinging) {
-                    Arrangement.SpaceEvenly
-                } else {
-                    Arrangement.Center
-                },
-            ) {
-                if (call.isRinging) {
-                    CallActionButton(
-                        color = MaterialTheme.colorScheme.error,
-                        contentDescription = "Decline call",
-                        onClick = onReject,
-                    ) {
-                        Icon(Icons.Filled.CallEnd, contentDescription = null, tint = Color.White)
-                    }
-                    CallActionButton(
-                        color = shieldColors.protected,
-                        contentDescription = "Accept call",
-                        onClick = onAnswer,
-                    ) {
-                        Icon(Icons.Filled.Call, contentDescription = null, tint = Color.White)
-                    }
-                } else {
+            // A ringing call is answered or rejected by dragging, never by a tap: this
+            // screen appears while the phone is in a pocket or on a table, and a tap target
+            // that answers a call is a target a pocket can hit. Ending a call already in
+            // progress stays a button — the phone is in the user's hand by then, and a
+            // gesture to hang up would be friction with nothing to protect.
+            if (call.isRinging) {
+                CallAnswerSwipe(onAnswer = onAnswer, onReject = onReject)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
                     CallActionButton(
                         color = MaterialTheme.colorScheme.error,
                         contentDescription = "End call",
