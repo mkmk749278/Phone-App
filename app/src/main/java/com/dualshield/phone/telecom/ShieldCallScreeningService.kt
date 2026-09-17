@@ -13,17 +13,20 @@ import com.dualshield.phone.core.rules.ShieldDecision
  * role (or makes us the default phone app). It runs entirely in the background: no Compose
  * screen, no activity, and no dependency on the app being open.
  *
- * The contract with the platform is tight — respond quickly, respond exactly once — so all
- * the real work happens in [com.dualshield.phone.shield.ShieldEngine] against a pre-built
- * in-memory snapshot.
+ * The contract with the platform is tight — respond quickly, respond exactly once — so the
+ * decision happens in [com.dualshield.phone.shield.ShieldEngine] against pre-warmed memory,
+ * with no I/O at all, and the response goes back before anything is written down.
+ *
+ * Blocking a call never launches an Activity, shows a dialog, takes a wake lock or asks for
+ * the display. A call blocked while the phone is locked is meant to leave the screen dark.
  */
 class ShieldCallScreeningService : CallScreeningService() {
 
     override fun onScreenCall(callDetails: Call.Details) {
+        val engine = (application as? DualShieldApplication)?.container?.shieldEngine
+
         val outcome = try {
-            val app = application as? DualShieldApplication
-            val rawNumber = callDetails.handle?.schemeSpecificPart
-            app?.container?.shieldEngine?.screen(rawNumber, callDetails.accountHandle)
+            engine?.screen(callDetails.handle?.schemeSpecificPart, callDetails.accountHandle)
         } catch (t: Throwable) {
             Log.e(TAG, "Screening threw; allowing the call.", t)
             null
@@ -34,12 +37,16 @@ class ShieldCallScreeningService : CallScreeningService() {
             return
         }
 
+        // Respond first. Everything below this line is bookkeeping, and none of it is
+        // allowed to delay the answer Telecom is waiting for or to change it.
+        respondToCall(callDetails, blockResponse())
+
         Log.i(
             TAG,
             "Blocked a call on slot ${outcome.slotIndex} via rule " +
                 "'${(outcome.decision as ShieldDecision.Block).rule.name}'.",
         )
-        respondToCall(callDetails, blockResponse())
+        engine?.recordBlockedCall(outcome)
         notifyBlocked()
     }
 
