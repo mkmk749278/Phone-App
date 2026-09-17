@@ -27,6 +27,7 @@ import com.dualshield.phone.ui.components.StatusPill
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 
 /** The conversation list. A plain SMS app, with one quiet Vault entry at the bottom. */
 @Composable
@@ -54,12 +55,15 @@ fun MessagesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "title") {
                 Text("Messages", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
             item(key = "search") {
                 SearchField(
@@ -67,7 +71,7 @@ fun MessagesScreen(
                     onValueChange = onQueryChange,
                     placeholder = "Search messages",
                 )
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
 
             if (threads.isEmpty()) {
@@ -111,7 +115,7 @@ fun MessagesScreen(
             }
 
             item(key = "vault") {
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
                 SectionCard {
                     AppListRow(
                         title = "Blocked call logs",
@@ -141,7 +145,7 @@ fun MessagesScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(80.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.listBottomInset) }
         }
     }
 }

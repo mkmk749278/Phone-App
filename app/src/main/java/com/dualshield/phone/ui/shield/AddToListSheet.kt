@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.PatternType
 import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /** What the user picked from the add sheet. */
 enum class AddRuleKind { NUMBER, PREFIX, CONTACT }
@@ -43,7 +44,7 @@ fun AddToListSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
             Text(
                 text = "Add to list",
@@ -69,7 +70,7 @@ fun AddToListSheet(
                 leading = { Icon(Icons.Filled.People, contentDescription = null) },
                 onClick = { onPick(AddRuleKind.CONTACT) },
             )
-            VerticalSpacer(8.dp)
+            VerticalSpacer(Spacing.sm)
         }
     }
 }

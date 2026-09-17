@@ -29,6 +29,7 @@ import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SectionHeading
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Settings. Short by design: SIM profiles, Shield, notifications, rule packs, privacy.
@@ -61,8 +62,11 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "setup") {
                 SectionCard {
@@ -106,7 +110,7 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 15.dp, vertical = 12.dp),
+                            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -163,7 +167,7 @@ fun SettingsScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }
@@ -178,7 +182,7 @@ private fun SimLabelEditor(
 ) {
     var value by remember(label) { mutableStateOf(label) }
     SectionCard {
-        Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+        Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
             Text(Formatting.slotName(slotIndex), style = MaterialTheme.typography.titleMedium)
             Text(
                 text = buildString {
@@ -188,7 +192,7 @@ private fun SimLabelEditor(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            VerticalSpacer(10.dp)
+            VerticalSpacer(Spacing.md)
             OutlinedTextField(
                 value = value,
                 onValueChange = {

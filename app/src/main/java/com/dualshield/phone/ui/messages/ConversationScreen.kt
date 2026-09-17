@@ -19,6 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,14 +33,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
-import com.dualshield.phone.data.system.SmsMessage
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.number.PhoneNumberFormatter
 import com.dualshield.phone.core.number.PhoneNumberNormalizer
+import com.dualshield.phone.data.system.SmsMessage
 import com.dualshield.phone.ui.actions.ExternalActions
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.EmptyState
@@ -45,6 +45,7 @@ import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SimChipRow
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * A single conversation.
@@ -132,7 +133,7 @@ fun ConversationScreen(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 17.dp, vertical = 8.dp),
+                        .padding(horizontal = Spacing.gutter, vertical = Spacing.sm),
                 )
             }
 
@@ -153,8 +154,8 @@ fun ConversationScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(horizontal = 17.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                        .padding(horizontal = Spacing.gutter),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     items(
                         items = conversation.messages,
@@ -170,15 +171,15 @@ fun ConversationScreen(
                 options = sims,
                 selectedSlot = selectedSlot,
                 onSelect = onSelectSim,
-                modifier = Modifier.padding(horizontal = 17.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.sm),
             )
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 17.dp, vertical = 8.dp),
+                    .padding(horizontal = Spacing.gutter, vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 OutlinedTextField(
                     value = conversation.draft,
@@ -208,7 +209,7 @@ fun ConversationScreen(
                     }
                 }
             }
-            VerticalSpacer(4.dp)
+            VerticalSpacer(Spacing.xs)
         }
     }
 }

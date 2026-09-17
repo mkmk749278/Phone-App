@@ -43,6 +43,7 @@ import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.shield.ScopeChoiceDialog
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Everything about one number: who it is, how to reach them, and what happened.
@@ -93,12 +94,12 @@ fun CallDetailsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 17.dp),
+                .padding(horizontal = Spacing.gutter),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            VerticalSpacer(14.dp)
+            VerticalSpacer(Spacing.lg)
             ContactAvatar(displayName, number, photoUri = photoUri, size = 72.dp)
-            VerticalSpacer(10.dp)
+            VerticalSpacer(Spacing.md)
             Text(
                 text = displayName?.takeIf { it.isNotBlank() } ?: displayNumber,
                 style = MaterialTheme.typography.headlineMedium,
@@ -112,14 +113,14 @@ fun CallDetailsScreen(
                 )
             }
 
-            VerticalSpacer(16.dp)
+            VerticalSpacer(Spacing.lg)
 
             // The call actions. Two SIMs means two buttons, each of which places the call on
             // that line; one SIM means one plain Call button, since there is nothing to pick.
             if (callableSims.size > 1) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     callableSims.forEach { sim ->
                         FilledTonalButton(
@@ -138,8 +139,8 @@ fun CallDetailsScreen(
                 }
             }
 
-            VerticalSpacer(10.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            VerticalSpacer(Spacing.md)
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 FilledTonalButton(onClick = { onMessage(number) }) {
                     Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null)
                     Text("  Message")
@@ -158,7 +159,7 @@ fun CallDetailsScreen(
                 }
             }
 
-            VerticalSpacer(20.dp)
+            VerticalSpacer(Spacing.xl)
             SectionCard {
                 if (!isSaved) {
                     AppListRow(
@@ -206,13 +207,13 @@ fun CallDetailsScreen(
                 )
             }
 
-            VerticalSpacer(18.dp)
+            VerticalSpacer(Spacing.lg)
             Text(
                 text = "Call history",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.fillMaxWidth(),
             )
-            VerticalSpacer(8.dp)
+            VerticalSpacer(Spacing.sm)
             if (history.isEmpty()) {
                 Text(
                     text = "No calls recorded with this number yet.",
@@ -244,7 +245,7 @@ fun CallDetailsScreen(
                     }
                 }
             }
-            VerticalSpacer(32.dp)
+            VerticalSpacer(Spacing.xxl)
         }
     }
 

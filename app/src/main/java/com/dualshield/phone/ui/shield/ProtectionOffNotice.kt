@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.ui.components.SimOption
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Says, on any screen that lists rules, that the rules on it are not being applied.
@@ -43,7 +44,7 @@ fun ProtectionOffNotice(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 15.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)
             // One announcement, not a heading followed by an orphaned sentence.
             .clearAndSetSemantics {
                 contentDescription = "Shield protection is off for $line. $body"

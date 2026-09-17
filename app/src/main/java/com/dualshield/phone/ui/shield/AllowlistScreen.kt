@@ -25,6 +25,7 @@ import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.displayForSlot
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The allowlist.
@@ -60,8 +61,11 @@ fun AllowlistScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item {
                 Text(
@@ -99,7 +103,7 @@ fun AllowlistScreen(
                 }
             }
 
-            item { VerticalSpacer(24.dp) }
+            item { VerticalSpacer(Spacing.xl) }
         }
     }
 }

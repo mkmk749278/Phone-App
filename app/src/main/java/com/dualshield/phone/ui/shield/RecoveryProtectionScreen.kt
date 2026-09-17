@@ -28,6 +28,7 @@ import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SectionHeading
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Behavioural protection, per SIM.
@@ -58,8 +59,11 @@ fun RecoveryProtectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "intro") {
                 Text(
@@ -140,7 +144,7 @@ fun RecoveryProtectionScreen(
             }
 
             item(key = "caveat") {
-                VerticalSpacer(4.dp)
+                VerticalSpacer(Spacing.xs)
                 Text(
                     text = "Saved contacts are never affected by this, however they call. " +
                         "These are observations about calling patterns, not judgements about " +
@@ -151,7 +155,7 @@ fun RecoveryProtectionScreen(
                 )
             }
 
-            item(key = "bottom-space") { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }
@@ -185,7 +189,7 @@ private fun ToggleRow(
             .selectable(selected = checked, onClick = { onChange(!checked) })
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Checkbox(checked = checked, onCheckedChange = null)
         Column(modifier = Modifier.fillMaxWidth()) {

@@ -29,6 +29,7 @@ import com.dualshield.phone.ui.components.StatusPill
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The blocklist, as a flat list of patterns.
@@ -74,8 +75,11 @@ fun BlockedNumbersScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
             if (rules.isEmpty()) {
                 item(key = "empty") {
@@ -86,7 +90,7 @@ fun BlockedNumbersScreen(
                     )
                 }
             } else {
-                groupedItems(items = rules, key = { it.id }, dividerInset = 17.dp) { rule ->
+                groupedItems(items = rules, key = { it.id }, dividerInset = Spacing.gutter) { rule ->
                     val blocking = rule.action == RuleAction.BLOCK
                     AppListRow(
                         title = RuleDisplay.patternOrName(rule),
@@ -120,7 +124,7 @@ fun BlockedNumbersScreen(
             }
 
             item(key = "hint") {
-                VerticalSpacer(14.dp)
+                VerticalSpacer(Spacing.lg)
                 Text(
                     text = "A prefix like 140 blocks every number that starts with it. " +
                         "Tap BLOCK or ALLOW to flip an entry without opening it.",
@@ -128,7 +132,7 @@ fun BlockedNumbersScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            item(key = "bottom-space") { VerticalSpacer(90.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.listBottomInset) }
         }
     }
 

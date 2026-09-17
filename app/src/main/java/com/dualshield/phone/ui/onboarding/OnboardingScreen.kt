@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 private val PROMISES = listOf(
     "Works entirely on this device" to
@@ -55,17 +56,17 @@ fun OnboardingScreen(
                 text = "Welcome to\nDualShieldPhone",
                 style = MaterialTheme.typography.displaySmall,
             )
-            VerticalSpacer(12.dp)
+            VerticalSpacer(Spacing.md)
             Text(
                 text = "Your calls and messages, your rules, your device.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            VerticalSpacer(24.dp)
+            VerticalSpacer(Spacing.xl)
             SectionCard {
                 PROMISES.forEach { (title, detail) ->
-                    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
                         Text(title, style = MaterialTheme.typography.bodyLarge)
                         Text(
                             text = detail,
@@ -76,7 +77,7 @@ fun OnboardingScreen(
                 }
             }
 
-            VerticalSpacer(28.dp)
+            VerticalSpacer(Spacing.xxl)
             Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
                 Text("Set up")
             }

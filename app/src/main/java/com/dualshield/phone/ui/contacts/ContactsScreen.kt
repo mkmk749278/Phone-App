@@ -20,6 +20,7 @@ import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SearchField
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The contact list.
@@ -48,12 +49,15 @@ fun ContactsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
             item(key = "title") {
                 Text("Contacts", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
             item(key = "search") {
                 SearchField(
@@ -61,7 +65,7 @@ fun ContactsScreen(
                     onValueChange = onQueryChange,
                     placeholder = "Search contacts",
                 )
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
 
             if (contacts.isEmpty()) {
@@ -92,7 +96,7 @@ fun ContactsScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(80.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }

@@ -37,6 +37,7 @@ import com.dualshield.phone.ui.components.ShieldStatusCard
 import com.dualshield.phone.ui.components.SimProtectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.displayForSlot
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Shield home.
@@ -75,8 +76,11 @@ fun ShieldScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "title") {
                 Text(
@@ -242,7 +246,7 @@ fun ShieldScreen(
                 )
             }
 
-            item(key = "bottom-space") { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 

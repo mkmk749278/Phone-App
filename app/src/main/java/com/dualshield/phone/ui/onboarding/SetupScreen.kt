@@ -35,6 +35,7 @@ import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.SimSlotBadge
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Setup, reachable both on first run and from Settings afterwards.
@@ -80,8 +81,11 @@ fun SetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "step-1") {
                 StepHeading(1, "Let the app see your calls")
@@ -154,7 +158,7 @@ fun SetupScreen(
             if (sims.isEmpty()) {
                 item(key = "no-sims") {
                     SectionCard {
-                        Column(modifier = Modifier.padding(15.dp)) {
+                        Column(modifier = Modifier.padding(Spacing.rowPaddingH)) {
                             Text("No SIMs detected yet", style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 text = "Grant the phone permission above and your SIMs will " +
@@ -169,7 +173,7 @@ fun SetupScreen(
 
             if (showDoneButton) {
                 item(key = "done") {
-                    VerticalSpacer(8.dp)
+                    VerticalSpacer(Spacing.sm)
                     Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
                         Text("Done")
                     }
@@ -179,7 +183,7 @@ fun SetupScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }
@@ -210,9 +214,9 @@ private fun RequirementRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 15.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Icon(
             imageVector = if (granted) {
@@ -254,7 +258,7 @@ private fun SimSetupCard(
     var label by remember(sim.slotIndex, sim.label) { mutableStateOf(sim.label) }
 
     SectionCard {
-        Column(modifier = Modifier.padding(15.dp)) {
+        Column(modifier = Modifier.padding(Spacing.rowPaddingH)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SimSlotBadge(slotIndex = sim.slotIndex)
                 Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
@@ -269,7 +273,7 @@ private fun SimSetupCard(
                     )
                 }
             }
-            VerticalSpacer(12.dp)
+            VerticalSpacer(Spacing.md)
             OutlinedTextField(
                 value = label,
                 onValueChange = {
@@ -281,7 +285,7 @@ private fun SimSetupCard(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            VerticalSpacer(8.dp)
+            VerticalSpacer(Spacing.sm)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Filter calls on this SIM", style = MaterialTheme.typography.bodyLarge)
