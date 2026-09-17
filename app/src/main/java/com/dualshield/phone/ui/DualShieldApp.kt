@@ -46,7 +46,7 @@ data class SystemActions(
 )
 
 /**
- * The app shell: header, four-tab bottom navigation, and the nav host.
+ * The app shell: header, three-tab bottom navigation, and the nav host.
  *
  * ViewModels are created here rather than per-destination so that state — the SIM you
  * picked, the search you typed — survives moving between tabs, which is what makes this

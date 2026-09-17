@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.ui.components.AppListRow
+import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.ShieldStatusCard
@@ -43,6 +44,7 @@ fun ShieldScreen(
     onOpenIndiaProtection: () -> Unit,
     onOpenVault: () -> Unit,
     onOpenTester: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val protectedSims = state.sims.filter { it.protectionEnabled }
@@ -50,6 +52,8 @@ fun ShieldScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        // Shield is reached from Settings rather than from a tab, so it needs a way back.
+        topBar = { DetailHeader(title = "Shield & blocking", onBack = onBack) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -59,7 +63,6 @@ fun ShieldScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "title") {
-                Text("Shield", style = MaterialTheme.typography.displaySmall)
                 Text(
                     text = "Protection is local and SIM-specific.",
                     style = MaterialTheme.typography.bodyMedium,

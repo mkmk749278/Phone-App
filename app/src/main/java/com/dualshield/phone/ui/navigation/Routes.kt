@@ -5,14 +5,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * Every destination in the app.
  *
- * The four top-level routes are ordered Phone → Messages → Contacts → Shield, which is also
- * the product's priority order: Shield is the last tab, not the first.
+ * There are three top-level routes — Phone, Messages, Contacts — and Shield is not one of
+ * them. Shield is configuration, not a place you visit, so it lives under Settings with the
+ * rest of the settings. The app should feel like a phone that happens to be protected, not
+ * a security console that happens to make calls.
  */
 object Routes {
     const val ONBOARDING = "onboarding"
@@ -74,5 +75,8 @@ val TOP_LEVEL_DESTINATIONS = listOf(
     TopLevelDestination(Routes.PHONE, "Phone", Icons.Filled.Call),
     TopLevelDestination(Routes.MESSAGES, "Messages", Icons.AutoMirrored.Filled.Message),
     TopLevelDestination(Routes.CONTACTS, "Contacts", Icons.Filled.People),
-    TopLevelDestination(Routes.SHIELD, "Shield", Icons.Filled.Shield),
 )
+
+/** True when [route] is one of the three tabs. Drives both the bars and the transitions. */
+fun isTopLevelRoute(route: String?): Boolean =
+    route != null && TOP_LEVEL_DESTINATIONS.any { it.route == route }
