@@ -114,7 +114,7 @@ fun MessagesScreen(
                 VerticalSpacer(10.dp)
                 SectionCard {
                     AppListRow(
-                        title = "Shield Vault",
+                        title = "Blocked call logs",
                         subtitle = if (state.blockedMessageCount == 0) {
                             "No messages filtered"
                         } else {

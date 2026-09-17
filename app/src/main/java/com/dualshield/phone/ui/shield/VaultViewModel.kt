@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
 import com.dualshield.phone.core.model.SimScope
 import com.dualshield.phone.data.db.entity.BlockedCallEntity
+import com.dualshield.phone.data.repository.BlockedCallGroup
+import com.dualshield.phone.data.repository.groupBlockedCalls
 import com.dualshield.phone.data.db.entity.BlockedMessageEntity
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.simOptionsFlow
@@ -16,7 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Shield Vault.
+ * Blocked call logs.
  *
  * Clearing the Vault removes records only. Rules, the allowlist and SIM settings survive,
  * and the UI says so before the user confirms.
@@ -26,6 +28,13 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     @Immutable
     data class UiState(
         val blockedCalls: List<BlockedCallEntity> = emptyList(),
+        /**
+         * The same records, one entry per caller.
+         *
+         * Grouped here rather than in the composable so the work happens once per data
+         * change instead of once per recomposition while the list is scrolled.
+         */
+        val callGroups: List<BlockedCallGroup> = emptyList(),
         val blockedMessages: List<BlockedMessageEntity> = emptyList(),
         val sims: List<SimOption> = emptyList(),
         val selectedIds: Set<Long> = emptySet(),
@@ -40,7 +49,8 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     init {
         viewModelScope.launch {
             container.vaultRepository.observeBlockedCalls().collect { calls ->
-                _state.update { it.copy(blockedCalls = calls) }
+                val groups = groupBlockedCalls(calls)
+                _state.update { it.copy(blockedCalls = calls, callGroups = groups) }
             }
         }
         viewModelScope.launch {

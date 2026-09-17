@@ -35,7 +35,7 @@ data class RecentCall(
  * Reads the system call log for the Recents list.
  *
  * DualShieldPhone never writes to or deletes from the platform call log. Blocked calls live
- * only in the Shield Vault, which is why Recents stays conceptually clean without the app
+ * only in the app's own blocked history, which is why Recents stays clean without the app
  * having to tamper with a database it does not own.
  */
 class CallLogRepository(private val context: Context) {

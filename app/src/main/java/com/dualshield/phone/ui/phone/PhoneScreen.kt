@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -41,6 +42,7 @@ import com.dualshield.phone.ui.components.ContactAvatar
 import com.dualshield.phone.ui.components.EmptyState
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SearchField
+import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SegmentedControl
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
@@ -62,6 +64,7 @@ fun PhoneScreen(
     onOpenDetails: (String) -> Unit,
     onOpenActions: (RecentCall) -> Unit,
     onOpenContactActions: (Contact) -> Unit,
+    onOpenBlockedCalls: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -130,6 +133,37 @@ fun PhoneScreen(
                             onClick = { onOpenActions(call) },
                             onOpenDetails = { onOpenDetails(call.number) },
                         )
+                    }
+                }
+
+                // One entry, not one row per blocked call. Blocked activity is worth keeping
+                // and worth being able to audit, but it is not what Recents is for: a list
+                // where nine of every ten rows are calls that never rang is not a call
+                // history, it is a security log.
+                if (state.blockedCallCount > 0) {
+                    item(key = "blocked-entry") {
+                        VerticalSpacer(6.dp)
+                        SectionCard {
+                            AppListRow(
+                                title = "Blocked call logs",
+                                subtitle = "${state.blockedCallCount} blocked",
+                                leading = {
+                                    Icon(
+                                        Icons.Filled.Shield,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                trailing = {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                onClick = onOpenBlockedCalls,
+                            )
+                        }
                     }
                 }
             } else {

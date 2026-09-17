@@ -230,6 +230,7 @@ fun DualShieldNavHost(
                         contactId = call.contactId,
                     )
                 },
+                onOpenBlockedCalls = { navController.navigate(Routes.VAULT) },
                 onOpenContactActions = { contact ->
                     val number = contact.phoneNumbers.firstOrNull()
                     if (number != null) {

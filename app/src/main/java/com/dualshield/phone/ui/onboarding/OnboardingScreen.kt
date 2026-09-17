@@ -23,7 +23,7 @@ private val PROMISES = listOf(
     "Each SIM is separate" to
         "A rule you write for one line can never affect the other.",
     "Nothing disappears silently" to
-        "Blocked calls are kept in the Shield Vault, and filtered messages are still saved.",
+        "Blocked calls are kept in your blocked call logs, and filtered messages are still saved.",
 )
 
 /**

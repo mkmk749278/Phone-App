@@ -121,7 +121,7 @@ fun SettingsScreen(
                     )
                     RowDivider()
                     AppListRow(
-                        title = "Shield Vault",
+                        title = "Blocked call logs",
                         subtitle = "Inspect and clear blocked-call history",
                         onClick = onOpenVault,
                     )

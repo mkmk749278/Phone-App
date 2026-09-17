@@ -201,7 +201,7 @@ fun ShieldScreen(
             item(key = "tools") {
                 SectionCard {
                     AppListRow(
-                        title = "Shield Vault",
+                        title = "Blocked call logs",
                         subtitle = "${state.blockedCallCount} blocked calls · " +
                             "${state.blockedMessageCount} filtered messages",
                         onClick = onOpenVault,
