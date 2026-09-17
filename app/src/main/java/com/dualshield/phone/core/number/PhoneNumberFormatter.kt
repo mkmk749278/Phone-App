@@ -76,6 +76,22 @@ object PhoneNumberFormatter {
     }
 
     /**
+     * The digits an international link needs: country code first, no `+`, no separators.
+     *
+     * Null when the number is not something that can be addressed internationally — a
+     * service code, a short code, a withheld caller or a sender ID. Callers use that null to
+     * hide the action rather than to build a link that cannot work.
+     */
+    fun internationalDigits(raw: String?): String? {
+        val info = PhoneNumberNormalizer.normalize(raw)
+        return when (info.kind) {
+            NumberKind.INDIAN_SUBSCRIBER -> "91${info.nationalDigits}"
+            NumberKind.INTERNATIONAL -> info.normalized.takeIf { it.length >= MIN_INTERNATIONAL }
+            else -> null
+        }
+    }
+
+    /**
      * The comparison key used to decide whether two numbers are the same party.
      *
      * The last ten digits, which is what makes `+91 87125 82492` and `08712582492` collapse
@@ -97,4 +113,7 @@ object PhoneNumberFormatter {
      * different service codes apart.
      */
     private const val MATCH_KEY_DIGITS = 10
+
+    /** Below this, a string of digits is a short code rather than a reachable line. */
+    private const val MIN_INTERNATIONAL = 8
 }

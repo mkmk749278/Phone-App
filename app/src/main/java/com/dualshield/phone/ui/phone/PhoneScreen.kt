@@ -2,16 +2,26 @@ package com.dualshield.phone.ui.phone
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallMissed
+import androidx.compose.material.icons.automirrored.filled.CallReceived
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +31,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.data.system.CallDirection
 import com.dualshield.phone.data.system.Contact
@@ -49,6 +60,8 @@ fun PhoneScreen(
     onQueryChange: (String) -> Unit,
     onOpenDialpad: () -> Unit,
     onOpenDetails: (String) -> Unit,
+    onOpenActions: (RecentCall) -> Unit,
+    onOpenContactActions: (Contact) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -114,7 +127,8 @@ fun PhoneScreen(
                         RecentCallRow(
                             call = call,
                             sims = state.sims,
-                            onClick = { onOpenDetails(call.number) },
+                            onClick = { onOpenActions(call) },
+                            onOpenDetails = { onOpenDetails(call.number) },
                         )
                     }
                 }
@@ -128,7 +142,7 @@ fun PhoneScreen(
                     }
                 } else {
                     groupedItems(items = favorites, key = { it.id }) { contact ->
-                        FavoriteRow(contact, onOpenDetails)
+                        FavoriteRow(contact, onOpenContactActions)
                     }
                 }
             }
@@ -143,18 +157,11 @@ private fun RecentCallRow(
     call: RecentCall,
     sims: List<SimOption>,
     onClick: () -> Unit,
+    onOpenDetails: () -> Unit,
 ) {
-    val title = call.displayName?.takeIf { it.isNotBlank() }
-        ?: Formatting.displayNumber(call.number)
+    val title = call.displayName?.takeIf { it.isNotBlank() } ?: call.displayNumber
     val simLabel = sims.firstOrNull { it.slotIndex == call.simSlot }?.display
-    val directionText = when (call.direction) {
-        CallDirection.INCOMING -> "Incoming"
-        CallDirection.OUTGOING -> "Outgoing"
-        CallDirection.MISSED -> "Missed"
-        CallDirection.REJECTED -> "Declined"
-        CallDirection.VOICEMAIL -> "Voicemail"
-        CallDirection.OTHER -> "Call"
-    }
+    val directionText = call.direction.label()
     val subtitle = if (simLabel != null) "$directionText · $simLabel" else directionText
     val time = Formatting.listTimestamp(call.timestamp)
 
@@ -165,12 +172,31 @@ private fun RecentCallRow(
             ContactAvatar(call.displayName, call.number, photoUri = call.photoUri)
         },
         trailing = {
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = time,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = time,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    // The call type is an icon as well as words, so the list can be read at
+                    // a glance without parsing every subtitle.
+                    Icon(
+                        imageVector = call.direction.icon(),
+                        contentDescription = null,
+                        tint = call.direction.tint(),
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
+                // The chevron is the one explicit way into the details screen, so tapping
+                // the row itself can mean the thing people actually want: the actions.
+                IconButton(onClick = onOpenDetails) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Call details for $title",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
         contentDescription = "$title, $subtitle, $time",
@@ -178,11 +204,36 @@ private fun RecentCallRow(
     )
 }
 
+private fun CallDirection.label(): String = when (this) {
+    CallDirection.INCOMING -> "Incoming"
+    CallDirection.OUTGOING -> "Outgoing"
+    CallDirection.MISSED -> "Missed"
+    CallDirection.REJECTED -> "Declined"
+    CallDirection.VOICEMAIL -> "Voicemail"
+    CallDirection.OTHER -> "Call"
+}
+
+private fun CallDirection.icon(): ImageVector = when (this) {
+    CallDirection.INCOMING -> Icons.AutoMirrored.Filled.CallReceived
+    CallDirection.OUTGOING -> Icons.AutoMirrored.Filled.CallMade
+    CallDirection.MISSED -> Icons.AutoMirrored.Filled.CallMissed
+    CallDirection.REJECTED -> Icons.Filled.Block
+    CallDirection.VOICEMAIL -> Icons.Filled.Voicemail
+    CallDirection.OTHER -> Icons.Filled.Call
+}
+
 @Composable
-private fun FavoriteRow(contact: Contact, onOpenDetails: (String) -> Unit) {
+private fun CallDirection.tint() = when (this) {
+    // Only a missed call is coloured. Tinting every row would make the list shout.
+    CallDirection.MISSED -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+@Composable
+private fun FavoriteRow(contact: Contact, onOpenActions: (Contact) -> Unit) {
     AppListRow(
         title = contact.displayName,
-        subtitle = Formatting.displayNumber(contact.primaryNumber),
+        subtitle = contact.phoneNumbers.firstOrNull()?.display,
         leading = {
             ContactAvatar(
                 contact.displayName,
@@ -190,6 +241,6 @@ private fun FavoriteRow(contact: Contact, onOpenDetails: (String) -> Unit) {
                 photoUri = contact.photoUri,
             )
         },
-        onClick = { contact.primaryNumber?.let(onOpenDetails) },
+        onClick = { onOpenActions(contact) },
     )
 }

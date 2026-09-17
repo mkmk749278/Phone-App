@@ -37,6 +37,13 @@
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <queries>
+        <!--
+            Named packages only. A general package listing would need QUERY_ALL_PACKAGES,
+            which this app has no business holding; these two entries are just enough to
+            answer "is WhatsApp here?" before offering the action.
+        -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
         <intent>
             <action android:name="android.intent.action.DIAL" />
         </intent>

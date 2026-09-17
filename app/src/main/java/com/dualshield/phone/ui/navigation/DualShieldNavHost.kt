@@ -3,6 +3,9 @@ package com.dualshield.phone.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -21,6 +24,8 @@ import com.dualshield.phone.ui.onboarding.OnboardingScreen
 import com.dualshield.phone.ui.onboarding.SetupScreen
 import com.dualshield.phone.ui.phone.CallDetailsScreen
 import com.dualshield.phone.ui.phone.DialpadScreen
+import com.dualshield.phone.ui.phone.NumberActionSheet
+import com.dualshield.phone.ui.phone.NumberActionTarget
 import com.dualshield.phone.ui.phone.PhoneScreen
 import com.dualshield.phone.ui.phone.PhoneViewModel
 import com.dualshield.phone.ui.settings.PrivacyScreen
@@ -123,6 +128,9 @@ fun DualShieldNavHost(
         composable(Routes.PHONE) {
             val state by phoneViewModel.state.collectAsStateWithLifecycle()
             val recents by phoneViewModel.filteredRecents.collectAsStateWithLifecycle()
+            // The row that was tapped, if any. Held here rather than inside the list so the
+            // sheet survives the list recomposing underneath it.
+            var actionTarget by remember { mutableStateOf<NumberActionTarget?>(null) }
             LaunchedEffect(Unit) { phoneViewModel.refreshIfStale() }
             PhoneScreen(
                 state = state,
@@ -130,7 +138,42 @@ fun DualShieldNavHost(
                 onQueryChange = phoneViewModel::onQueryChange,
                 onOpenDialpad = { navController.navigate(Routes.DIALPAD) },
                 onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
+                onOpenActions = { call ->
+                    actionTarget = NumberActionTarget(
+                        rawNumber = call.number,
+                        displayNumber = call.displayNumber,
+                        displayName = call.displayName,
+                        photoUri = call.photoUri,
+                        contactId = call.contactId,
+                    )
+                },
+                onOpenContactActions = { contact ->
+                    val number = contact.phoneNumbers.firstOrNull()
+                    if (number != null) {
+                        actionTarget = NumberActionTarget(
+                            rawNumber = number.raw,
+                            displayNumber = number.display,
+                            displayName = contact.displayName,
+                            photoUri = contact.photoUri,
+                            contactId = contact.id,
+                        )
+                    }
+                },
             )
+
+            actionTarget?.let { target ->
+                NumberActionSheet(
+                    target = target,
+                    sims = state.sims,
+                    defaultSlot = state.selectedSlot,
+                    onDismiss = { actionTarget = null },
+                    onCall = phoneViewModel::call,
+                    onMessage = { navController.navigate(Routes.conversation(-1L, it)) },
+                    onBlock = { navController.navigate(Routes.callDetails(it)) },
+                    onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
+                    onActionFailed = phoneViewModel::showMessage,
+                )
+            }
         }
 
         composable(Routes.DIALPAD) {
@@ -161,7 +204,9 @@ fun DualShieldNavHost(
             CallDetailsScreen(
                 number = number,
                 displayName = details.contact?.displayName,
-                photoUri = details.contact?.photoUri,
+                photoUri = details.photoUri,
+                contactId = details.contactId,
+                isBlocked = details.isBlocked,
                 history = details.history,
                 sims = state.sims,
                 defaultSlot = state.selectedSlot,
@@ -171,9 +216,8 @@ fun DualShieldNavHost(
                 onBlock = { scope ->
                     phoneViewModel.blockNumber(number, details.contact?.displayName, scope)
                 },
-                onAllow = { scope ->
-                    phoneViewModel.allowNumber(number, details.contact?.displayName, scope)
-                },
+                onUnblock = { phoneViewModel.unblockNumber(number) },
+                onMessageShown = phoneViewModel::showMessage,
             )
         }
 
