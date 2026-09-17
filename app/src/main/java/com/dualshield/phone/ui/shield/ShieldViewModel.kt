@@ -1,0 +1,432 @@
+package com.dualshield.phone.ui.shield
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.dualshield.phone.AppContainer
+import com.dualshield.phone.core.model.Confidence
+import com.dualshield.phone.core.model.PatternType
+import com.dualshield.phone.core.model.Provenance
+import com.dualshield.phone.core.model.RuleAction
+import com.dualshield.phone.core.model.RuleCategory
+import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.number.PhoneNumberNormalizer
+import com.dualshield.phone.core.rules.CompiledRule
+import com.dualshield.phone.core.rules.RuleIndex
+import com.dualshield.phone.core.rules.ShieldDecision
+import com.dualshield.phone.data.db.entity.AllowRuleEntity
+import com.dualshield.phone.data.db.entity.CallRuleEntity
+import com.dualshield.phone.data.repository.compile
+import com.dualshield.phone.data.rulepack.RulePackParser
+import com.dualshield.phone.ui.components.SimOption
+import com.dualshield.phone.ui.simOptionsFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+/** Everything under the Shield tab: overview, per-SIM rules, the editor and the tester. */
+class ShieldViewModel(private val container: AppContainer) : ViewModel() {
+
+    data class UiState(
+        val sims: List<SimOption> = emptyList(),
+        val rules: List<CallRuleEntity> = emptyList(),
+        val allowRules: List<AllowRuleEntity> = emptyList(),
+        val blockedCallCount: Int = 0,
+        val blockedMessageCount: Int = 0,
+        val message: String? = null,
+    ) {
+        val anyProtectionOn: Boolean get() = sims.any { it.protectionEnabled }
+
+        fun sim(slotIndex: Int): SimOption? = sims.firstOrNull { it.slotIndex == slotIndex }
+
+        fun rulesForSlot(slotIndex: Int): List<CallRuleEntity> =
+            rules.filter { it.simScope.coversSlot(slotIndex) }
+
+        fun allowRulesForSlot(slotIndex: Int): List<AllowRuleEntity> =
+            allowRules.filter { it.simScope.coversSlot(slotIndex) }
+    }
+
+    /** An in-progress rule. Kept separate from the entity so a bad draft never reaches Room. */
+    data class RuleDraft(
+        val id: Long = 0,
+        val name: String = "",
+        val patternType: PatternType = PatternType.EXACT,
+        val pattern: String = "",
+        val scope: SimScope = SimScope.SIM2,
+        val action: RuleAction = RuleAction.BLOCK,
+        val category: RuleCategory = RuleCategory.USER_BLOCK,
+        val description: String = "",
+        val enabled: Boolean = true,
+        val builtIn: Boolean = false,
+        val patternError: String? = null,
+        val testNumber: String = "",
+        val testOutcome: TestOutcome? = null,
+        val saved: Boolean = false,
+    ) {
+        val isAdvanced: Boolean
+            get() = patternType == PatternType.REGEX || patternType == PatternType.CONTAINS
+    }
+
+    data class TestOutcome(
+        val matched: Boolean,
+        val headline: String,
+        val detail: String,
+    )
+
+    private val _state = MutableStateFlow(UiState())
+    val state: StateFlow<UiState> = _state.asStateFlow()
+
+    private val _draft = MutableStateFlow(RuleDraft())
+    val draft: StateFlow<RuleDraft> = _draft.asStateFlow()
+
+    private val _tester = MutableStateFlow(TesterState())
+    val tester: StateFlow<TesterState> = _tester.asStateFlow()
+
+    data class TesterState(
+        val number: String = "",
+        val slotIndex: Int? = null,
+        val outcome: TestOutcome? = null,
+    )
+
+    init {
+        viewModelScope.launch {
+            combine(
+                container.simOptionsFlow(),
+                container.ruleRepository.observeRules(),
+                container.ruleRepository.observeAllowRules(),
+            ) { sims, rules, allows -> Triple(sims, rules, allows) }
+                .collect { (sims, rules, allows) ->
+                    _state.update {
+                        it.copy(sims = sims, rules = rules, allowRules = allows)
+                    }
+                    if (_tester.value.slotIndex == null) {
+                        _tester.update { it.copy(slotIndex = sims.firstOrNull()?.slotIndex) }
+                    }
+                }
+        }
+        viewModelScope.launch {
+            container.vaultRepository.observeBlockedCallCount().collect { count ->
+                _state.update { it.copy(blockedCallCount = count) }
+            }
+        }
+        viewModelScope.launch {
+            container.vaultRepository.observeBlockedMessageCount().collect { count ->
+                _state.update { it.copy(blockedMessageCount = count) }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ SIM state
+
+    fun setProtectionEnabled(slotIndex: Int, enabled: Boolean) {
+        viewModelScope.launch {
+            container.simRepository.setFilteringEnabled(slotIndex, enabled)
+            val label = _state.value.sim(slotIndex)?.display ?: "SIM ${slotIndex + 1}"
+            _state.update {
+                it.copy(
+                    message = if (enabled) {
+                        "Protection on for $label"
+                    } else {
+                        "Protection off for $label"
+                    },
+                )
+            }
+        }
+    }
+
+    fun setSimLabel(slotIndex: Int, label: String) {
+        viewModelScope.launch { container.simRepository.setLabel(slotIndex, label) }
+    }
+
+    fun setRuleEnabled(ruleId: Long, enabled: Boolean) {
+        viewModelScope.launch {
+            container.ruleRepository.setRuleEnabled(ruleId, enabled, System.currentTimeMillis())
+        }
+    }
+
+    fun deleteRule(ruleId: Long) {
+        viewModelScope.launch {
+            container.ruleRepository.deleteRule(ruleId)
+            _state.update { it.copy(message = "Rule deleted") }
+        }
+    }
+
+    fun deleteAllowRule(id: Long) {
+        viewModelScope.launch {
+            container.ruleRepository.deleteAllowRule(id)
+            _state.update { it.copy(message = "Removed from the allowlist") }
+        }
+    }
+
+    fun allowNumber(number: String, displayName: String?, scope: SimScope) {
+        viewModelScope.launch {
+            runCatching {
+                container.ruleRepository.allowNumber(
+                    number,
+                    displayName,
+                    scope,
+                    System.currentTimeMillis(),
+                )
+            }.onSuccess { _state.update { it.copy(message = "Number allowed") } }
+                .onFailure { _state.update { it.copy(message = "That number couldn't be allowed.") } }
+        }
+    }
+
+    fun blockNumber(number: String, displayName: String?, scope: SimScope) {
+        viewModelScope.launch {
+            runCatching {
+                container.ruleRepository.blockNumber(
+                    number,
+                    displayName,
+                    scope,
+                    System.currentTimeMillis(),
+                )
+            }.onSuccess { _state.update { it.copy(message = "Number blocked") } }
+                .onFailure { _state.update { it.copy(message = "That number couldn't be blocked.") } }
+        }
+    }
+
+    fun consumeMessage() = _state.update { it.copy(message = null) }
+
+    // ------------------------------------------------------------------ rule editor
+
+    fun startNewRule(scope: SimScope, patternType: PatternType = PatternType.EXACT) {
+        _draft.value = RuleDraft(patternType = patternType, scope = scope)
+    }
+
+    fun loadRule(ruleId: Long) {
+        if (ruleId <= 0L) return
+        viewModelScope.launch {
+            val rule = container.ruleRepository.rule(ruleId) ?: return@launch
+            _draft.value = RuleDraft(
+                id = rule.id,
+                name = rule.name,
+                patternType = rule.patternType,
+                pattern = rule.pattern,
+                scope = rule.simScope,
+                action = rule.action,
+                category = rule.category,
+                description = rule.description,
+                enabled = rule.enabled,
+                builtIn = rule.builtIn,
+            )
+        }
+    }
+
+    fun onDraftName(value: String) = _draft.update { it.copy(name = value, saved = false) }
+
+    fun onDraftPattern(value: String) = _draft.update {
+        it.copy(pattern = value, patternError = null, testOutcome = null, saved = false)
+    }
+
+    fun onDraftPatternType(value: PatternType) = _draft.update {
+        it.copy(patternType = value, patternError = null, testOutcome = null, saved = false)
+    }
+
+    fun onDraftScope(value: SimScope) = _draft.update { it.copy(scope = value, saved = false) }
+
+    fun onDraftAction(value: RuleAction) = _draft.update {
+        it.copy(
+            action = value,
+            category = if (value == RuleAction.ALLOW) {
+                RuleCategory.USER_ALLOW
+            } else {
+                RuleCategory.USER_BLOCK
+            },
+            saved = false,
+        )
+    }
+
+    fun onDraftDescription(value: String) = _draft.update { it.copy(description = value) }
+
+    fun onDraftEnabled(value: Boolean) = _draft.update { it.copy(enabled = value) }
+
+    fun onDraftTestNumber(value: String) = _draft.update {
+        it.copy(testNumber = value, testOutcome = null)
+    }
+
+    /**
+     * Tests the draft rule against a number without writing anything.
+     *
+     * This exists because a mistyped regex is the easiest way for a user to silently lose
+     * calls, and the only honest defence is to let them see the match before they save.
+     */
+    fun testDraft() {
+        val current = _draft.value
+        val patternError = validatePattern(current)
+        if (patternError != null) {
+            _draft.update { it.copy(patternError = patternError, testOutcome = null) }
+            return
+        }
+        val compiled = compileDraft(current)
+        if (compiled == null) {
+            _draft.update {
+                it.copy(patternError = "This rule can't be tested yet. Check the pattern.")
+            }
+            return
+        }
+        val info = PhoneNumberNormalizer.normalize(current.testNumber)
+        val matched = RuleIndex.build(listOf(compiled)).match(info) != null
+        val scopeLabel = scopeDisplay(current.scope)
+        _draft.update {
+            it.copy(
+                patternError = null,
+                testOutcome = TestOutcome(
+                    matched = matched,
+                    headline = if (matched) "MATCH" else "NO MATCH",
+                    detail = if (matched) {
+                        if (current.action == RuleAction.ALLOW) {
+                            "This number would always be allowed on $scopeLabel."
+                        } else {
+                            "This number would be blocked on $scopeLabel."
+                        }
+                    } else {
+                        "This rule would not affect this number."
+                    },
+                ),
+            )
+        }
+    }
+
+    fun saveDraft() {
+        val current = _draft.value
+        if (current.name.isBlank()) {
+            _draft.update { it.copy(patternError = "Give this rule a name so you can find it later.") }
+            return
+        }
+        val patternError = validatePattern(current)
+        if (patternError != null) {
+            _draft.update { it.copy(patternError = patternError) }
+            return
+        }
+
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val existing = if (current.id > 0) container.ruleRepository.rule(current.id) else null
+            if (existing != null) {
+                container.ruleRepository.updateRule(
+                    existing.copy(
+                        name = current.name.trim(),
+                        pattern = current.pattern.trim(),
+                        patternType = current.patternType,
+                        action = current.action,
+                        simScope = current.scope,
+                        enabled = current.enabled,
+                        description = current.description.trim(),
+                        updatedAt = now,
+                    ),
+                )
+            } else {
+                container.ruleRepository.insertRule(
+                    CallRuleEntity(
+                        stableId = "user-${current.patternType.name.lowercase()}-" +
+                            "${current.pattern.trim()}-${current.scope.name}-$now",
+                        name = current.name.trim(),
+                        category = current.category,
+                        pattern = current.pattern.trim(),
+                        patternType = current.patternType,
+                        action = current.action,
+                        simScope = current.scope,
+                        enabled = current.enabled,
+                        priority = if (current.action == RuleAction.ALLOW) 20 else 50,
+                        confidence = Confidence.HIGH,
+                        provenance = Provenance.USER_DEFINED,
+                        description = current.description.trim(),
+                        builtIn = false,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            }
+            _draft.update { it.copy(saved = true, patternError = null) }
+            _state.update { it.copy(message = "Rule saved") }
+        }
+    }
+
+    // ------------------------------------------------------------------ rule tester
+
+    fun onTesterNumber(value: String) = _tester.update { it.copy(number = value, outcome = null) }
+
+    fun onTesterSlot(slotIndex: Int) = _tester.update { it.copy(slotIndex = slotIndex, outcome = null) }
+
+    /**
+     * Runs the whole engine, exactly as the screening service would, with no side effects.
+     *
+     * Using the real engine rather than a simplified copy is the point: what the tester says
+     * is what will actually happen to the next call.
+     */
+    fun runTester() {
+        val current = _tester.value
+        if (current.number.isBlank()) {
+            _tester.update {
+                it.copy(outcome = TestOutcome(false, "Enter a number", "Type a number to test."))
+            }
+            return
+        }
+        val (info, decision) = container.shieldEngine.dryRun(current.number, current.slotIndex)
+        val simLabel = current.slotIndex
+            ?.let { slot -> _state.value.sim(slot)?.display }
+            ?: "an unidentified SIM"
+
+        val outcome = when (decision) {
+            is ShieldDecision.Block -> TestOutcome(
+                matched = true,
+                headline = "WOULD BE BLOCKED",
+                detail = "${Formatted.number(info.normalized)} matches " +
+                    "\"${decision.rule.name}\" on $simLabel.",
+            )
+            is ShieldDecision.Allow -> TestOutcome(
+                matched = false,
+                headline = "WOULD RING",
+                detail = decision.rule
+                    ?.let { "Allowed by \"${it.name}\" on $simLabel." }
+                    ?: "${decision.reason.explanation} on $simLabel.",
+            )
+        }
+        _tester.update { it.copy(outcome = outcome) }
+    }
+
+    private object Formatted {
+        fun number(value: String) = value.ifBlank { "This caller" }
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    private fun validatePattern(draft: RuleDraft): String? = when (draft.patternType) {
+        PatternType.REGEX -> RulePackParser.validateRegex(draft.pattern.trim())
+        PatternType.SPECIAL -> null
+        PatternType.REPEATED_CALL -> "Repeated-caller rules aren't available yet."
+        else -> if (draft.pattern.none { it.isDigit() }) {
+            "Enter at least one digit to match."
+        } else {
+            null
+        }
+    }
+
+    private fun compileDraft(draft: RuleDraft): CompiledRule? = CompiledRule.from(
+        id = draft.id,
+        stableId = "draft",
+        name = draft.name.ifBlank { "Untitled rule" },
+        category = draft.category,
+        pattern = draft.pattern.trim(),
+        patternType = draft.patternType,
+        action = draft.action,
+        simScope = draft.scope,
+        confidence = Confidence.HIGH,
+        provenance = Provenance.USER_DEFINED,
+        priority = 50,
+        builtIn = false,
+        description = draft.description,
+    )
+
+    private fun scopeDisplay(scope: SimScope): String = when (scope) {
+        SimScope.BOTH -> "both SIMs"
+        SimScope.SIM1 -> _state.value.sim(0)?.display ?: "SIM 1"
+        SimScope.SIM2 -> _state.value.sim(1)?.display ?: "SIM 2"
+    }
+}
+
+/** Convenience used by the Shield screens when turning a stored rule into a compiled one. */
+fun CallRuleEntity.toCompiledOrNull(): CompiledRule? = compile()
