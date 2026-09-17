@@ -20,10 +20,12 @@ call on your duty line. This is enforced structurally: a rule is only ever *inde
 slots its scope covers, so cross-SIM leakage is impossible rather than merely unlikely.
 
 **2. Fail open.** If the SIM cannot be identified, if the slot has no profile, if the rule
-snapshot is unavailable, if a regex will not compile, if the Vault write fails, or if
-anything throws — the call rings. Blocking is only ever the result of a positive, deliberate
-match. `RuleEngine.evaluate` catches `Throwable` and returns an `Allow`, and the return type
-has no third state.
+snapshot has not loaded yet, if a regex will not compile, or if anything throws — the call
+rings. Blocking is only ever the result of a positive, deliberate match. `RuleEngine.evaluate`
+catches `Throwable` and returns an `Allow`.
+
+Note what is *not* in that list: a failed Vault write. Storage does not get a vote on the
+user's rules. See below.
 
 Emergency and safety numbers (112, 100, 101, 102, 108, 1091, 1098, 1930 and friends) are
 checked before any rule and can never be blocked.
@@ -53,12 +55,24 @@ INCOMING CALL
                     ┌────┴────┐
                   BLOCK     ALLOW
                     │
-              Vault record, then reject
+              Reject, then record
 ```
 
-A blocked call is written to the Shield Vault **before** it is rejected. If that write
-fails, the call is allowed instead — a call that vanishes with no record is a worse outcome
-than one unwanted ring.
+A blocked call is rejected **first**, and the Shield Vault record is written afterwards, off
+the screening path. The ordering matters in both directions:
+
+- Android gives a `CallScreeningService` a few seconds to answer and the user hears the
+  delay, so the decision path does no I/O at all — no Room, no content provider, no waiting
+  on another coroutine. It reads a pre-warmed rule snapshot and a pre-warmed set of
+  saved-contact keys, and returns.
+- If the record cannot be written, the call still stays blocked. An earlier version wrote
+  the record first and allowed the call when the write failed, which handed the database a
+  veto over the user's own rules: a full disk or a locked file meant unwanted calls started
+  ringing again, silently. Losing an audit row is the lesser failure, and it is logged.
+
+On a cold start — the process created by Telecom for the call being screened — the snapshot
+may not have arrived yet. The call is allowed and the snapshot warms in the background,
+rather than holding the ring open while Room starts up.
 
 Architecturally:
 

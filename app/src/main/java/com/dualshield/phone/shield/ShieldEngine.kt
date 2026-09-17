@@ -20,25 +20,40 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.dualshield.phone.core.number.PhoneNumberFormatter
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
 
-/** What the screening service should do, plus everything needed to explain it afterwards. */
+/**
+ * What the screening service should do, plus everything needed to explain it afterwards.
+ *
+ * Deliberately carries no record of whether the event was persisted: persistence happens
+ * *after* this is handed to Telecom, so at decision time the answer does not exist yet.
+ */
 data class ScreeningOutcome(
     val decision: ShieldDecision,
     val info: PhoneNumberInfo,
     val slotIndex: Int?,
     val simLabel: String,
-    val vaultRecorded: Boolean,
 )
 
 /**
  * Holds the live rule snapshot and answers screening questions.
  *
- * The snapshot is kept warm in memory by a collector started at process launch, so the
- * common case for [screen] is a handful of hash lookups with no I/O at all. Room is only
- * touched on the call path in the cold-start case, and then under a hard timeout.
+ * Android gives a `CallScreeningService` a few seconds to answer, and the user hears the
+ * delay, so the decision path here does no I/O at all: no Room, no content provider, no
+ * waiting on another coroutine, no `runBlocking`. Everything it consults — the rule
+ * snapshot, the set of saved-contact keys — is pre-warmed in memory by collectors started
+ * at process launch.
+ *
+ * Two rules govern the order of operations, and they are not interchangeable:
+ *
+ *  1. **Decide, respond, then persist.** The blocked-call record is written after Telecom
+ *     has its answer. A storage failure must never turn a block into a ring: the earlier
+ *     design wrote the record first and allowed the call if the write failed, which handed
+ *     the database a veto over the user's own rules.
+ *  2. **Fail open on uncertainty.** An unresolved SIM, a malformed number, a snapshot that
+ *     has not loaded yet, or any exception at all resolves to allow. Blocking is only ever
+ *     the result of a positive match.
  */
 class ShieldEngine(
     private val scope: CoroutineScope,
@@ -54,7 +69,18 @@ class ShieldEngine(
     @Volatile
     private var warm: Boolean = false
 
-    /** Starts keeping the snapshot up to date. Called once, from Application.onCreate. */
+    /**
+     * Match keys of every saved contact, kept in memory.
+     *
+     * "Is this a saved contact?" feeds the rule engine, because a SIM can be set to let
+     * contacts through whatever else matches. Answering it used to mean a ContactsProvider
+     * query inside the screening callback — a cross-process call on the one path that must
+     * not do I/O. The keys are loaded once and refreshed in the background instead.
+     */
+    @Volatile
+    private var contactKeys: Set<String> = emptySet()
+
+    /** Starts keeping the snapshot and contact keys up to date. Called from Application. */
     fun start() {
         scope.launch {
             ruleRepository.observeSnapshot().collect { next ->
@@ -62,48 +88,93 @@ class ShieldEngine(
                 warm = true
             }
         }
+        refreshContactKeys()
+    }
+
+    /** Reloads the saved-contact keys. Safe to call whenever the address book may have changed. */
+    fun refreshContactKeys() {
+        scope.launch {
+            runCatching {
+                contactsRepository.loadContacts().flatMap { contact ->
+                    contact.phoneNumbers.mapNotNull { it.matchKey.takeIf(String::isNotEmpty) }
+                }.toSet()
+            }.onSuccess { keys ->
+                contactKeys = keys
+            }.onFailure {
+                Log.w(TAG, "Contact keys could not be loaded; contact bypass is off until they are.", it)
+            }
+        }
     }
 
     /**
-     * Screens one incoming call.
+     * Decides what to do about one incoming call, and does nothing else.
      *
-     * Every failure path in here resolves to allow. In particular, if the Vault record
-     * cannot be written we deliberately let the call through: a call that disappears with
-     * no trace is worse for the user than one unwanted ring.
+     * This is the whole of the critical path. It touches only pre-warmed memory, so it
+     * returns in well under a millisecond in the common case, and every failure inside it
+     * resolves to allow.
+     *
+     * The caller must respond to Telecom with this outcome **first**, and only then call
+     * [recordBlockedCall] to persist it.
      */
     fun screen(rawNumber: String?, accountHandle: PhoneAccountHandle?): ScreeningOutcome {
         val info = PhoneNumberNormalizer.normalize(rawNumber)
         val slotIndex = runCatching { simRepository.resolveSlotIndex(accountHandle) }.getOrNull()
         val snapshot = currentSnapshot()
-        val simLabel = slotIndex
-            ?.let { snapshot.forSlot(it)?.label }
-            ?: slotIndex?.let { SimRepository.defaultLabelForSlot(it) }
+        val simLabel = slotIndex?.let { snapshot.forSlot(it)?.label }?.takeIf { it.isNotBlank() }
+            ?: slotIndex?.let { "SIM ${it + 1}" }
             ?: "Unknown SIM"
 
-        val contactName = lookupContact(info)
         val decision = RuleEngine.evaluate(
             snapshot = snapshot,
             info = info,
             slotIndex = slotIndex,
             channel = ShieldChannel.CALL,
-            isContact = contactName != null,
+            isContact = isSavedContact(info),
         )
-        if (decision !is ShieldDecision.Block) {
-            return ScreeningOutcome(decision, info, slotIndex, simLabel, vaultRecorded = false)
-        }
+        return ScreeningOutcome(decision, info, slotIndex, simLabel)
+    }
 
-        val recorded = recordBlockedCall(info, decision, slotIndex ?: -1, simLabel, contactName)
-        if (!recorded) {
-            Log.w(TAG, "Vault write failed; allowing the call rather than dropping it silently.")
-            return ScreeningOutcome(
-                decision = ShieldDecision.Allow(AllowReason.ENGINE_ERROR),
-                info = info,
-                slotIndex = slotIndex,
-                simLabel = simLabel,
-                vaultRecorded = false,
-            )
+    /**
+     * Persists a blocked call, after the response has already gone to Telecom.
+     *
+     * Fire-and-forget by design. If this fails the call still stayed blocked, which is the
+     * outcome the user asked for; what is lost is the audit record, and that is logged. The
+     * inverse — letting a call through because a write failed — is the failure this ordering
+     * exists to prevent.
+     */
+    fun recordBlockedCall(outcome: ScreeningOutcome) {
+        val decision = outcome.decision as? ShieldDecision.Block ?: return
+        scope.launch {
+            runCatching {
+                val rule = decision.rule
+                // Resolved out here rather than in the screening callback: it can reach the
+                // telephony service, which is exactly the kind of call the critical path
+                // must not make.
+                val subscriptionId = outcome.slotIndex
+                    ?.let { simRepository.subscriptionIdForSlot(it) }
+                    ?.takeIf { it >= 0 }
+                    ?: -1
+                vaultRepository.record(
+                    BlockedCallEntity(
+                        rawNumber = outcome.info.raw,
+                        normalizedNumber = outcome.info.normalized,
+                        displayName = contactsRepository.displayNameFor(outcome.info.raw),
+                        timestamp = System.currentTimeMillis(),
+                        simSlot = outcome.slotIndex ?: -1,
+                        subscriptionId = subscriptionId,
+                        simLabel = outcome.simLabel,
+                        matchedRuleId = rule.id.takeIf { it != 0L },
+                        matchedRuleStableId = rule.stableId,
+                        matchedRuleName = rule.name,
+                        category = rule.category,
+                        reason = reasonFor(rule.category, rule.name),
+                    ),
+                )
+                if (rule.id != 0L) ruleRepository.recordMatch(rule.id)
+            }.onFailure {
+                Log.w(TAG, "Blocked-call record could not be saved; the call stayed blocked.", it)
+            }
         }
-        return ScreeningOutcome(decision, info, slotIndex, simLabel, vaultRecorded = true)
     }
 
     /**
@@ -112,6 +183,9 @@ class ShieldEngine(
      * A blocked message is recorded and kept out of the user's attention, but the message
      * itself is still written to the system inbox by the caller — Shield hides messages, it
      * never destroys them.
+     *
+     * Same ordering as calls: the decision is made from memory and returned immediately, and
+     * the record is written afterwards.
      *
      * @return true when the message should be treated as filtered.
      */
@@ -126,39 +200,41 @@ class ShieldEngine(
             simRepository.slotForSubscriptionId(subscriptionId)
         }.getOrNull()
         val snapshot = currentSnapshot()
-        val contactName = lookupContact(info)
 
         val decision = RuleEngine.evaluate(
             snapshot = snapshot,
             info = info,
             slotIndex = slotIndex,
             channel = ShieldChannel.SMS,
-            isContact = contactName != null,
+            isContact = isSavedContact(info),
         )
         val block = decision as? ShieldDecision.Block ?: return false
 
-        val simLabel = slotIndex?.let { snapshot.forSlot(it)?.label } ?: "Unknown SIM"
-        return runBlocking {
-            withTimeoutOrNull(VAULT_WRITE_BUDGET_MS) {
-                runCatching {
-                    vaultRepository.recordMessage(
-                        BlockedMessageEntity(
-                            rawNumber = info.raw,
-                            normalizedNumber = info.normalized,
-                            displayName = contactName,
-                            body = body,
-                            timestamp = timestamp,
-                            simSlot = slotIndex ?: -1,
-                            simLabel = simLabel,
-                            matchedRuleName = block.rule.name,
-                            reason = reasonFor(block.rule.category, block.rule.name),
-                        ),
-                    )
-                    if (block.rule.id != 0L) ruleRepository.recordMatch(block.rule.id)
-                    true
-                }.getOrDefault(false)
+        val simLabel = slotIndex?.let { snapshot.forSlot(it)?.label }?.takeIf { it.isNotBlank() }
+            ?: slotIndex?.let { "SIM ${it + 1}" }
+            ?: "Unknown SIM"
+
+        scope.launch {
+            runCatching {
+                vaultRepository.recordMessage(
+                    BlockedMessageEntity(
+                        rawNumber = info.raw,
+                        normalizedNumber = info.normalized,
+                        displayName = contactsRepository.displayNameFor(info.raw),
+                        body = body,
+                        timestamp = timestamp,
+                        simSlot = slotIndex ?: -1,
+                        simLabel = simLabel,
+                        matchedRuleName = block.rule.name,
+                        reason = reasonFor(block.rule.category, block.rule.name),
+                    ),
+                )
+                if (block.rule.id != 0L) ruleRepository.recordMatch(block.rule.id)
+            }.onFailure {
+                Log.w(TAG, "Blocked-message record could not be saved; it stayed filtered.", it)
             }
-        } ?: false
+        }
+        return true
     }
 
     /** Evaluates without any side effects. Backs the rule tester. */
@@ -173,69 +249,48 @@ class ShieldEngine(
             info = info,
             slotIndex = slotIndex,
             channel = channel,
-            isContact = lookupContact(info) != null,
+            isContact = isSavedContact(info),
         )
     }
 
-    /** Contact name for a caller, or null. Swallows every failure — never blocks on this. */
-    private fun lookupContact(info: PhoneNumberInfo): String? {
-        if (!info.hasDigits) return null
-        return runCatching {
-            contactsRepository.displayNameFor(info.raw.takeIf { it.isNotBlank() } ?: info.normalized)
-        }.getOrNull()?.takeIf { it.isNotBlank() }
+    /**
+     * Whether this caller is in the address book, answered from memory.
+     *
+     * Returns false when the keys have not loaded yet. That is the safe direction: the
+     * contact bypass is a reason to *allow*, so not knowing means the ordinary rules apply,
+     * never that someone is blocked who should not have been.
+     */
+    private fun isSavedContact(info: PhoneNumberInfo): Boolean {
+        if (!info.hasDigits) return false
+        val key = PhoneNumberFormatter.matchKeyOf(info)
+        return key.isNotEmpty() && key in contactKeys
     }
 
+    /**
+     * The rule snapshot, or an empty one.
+     *
+     * Never waits. On a cold start — the process created by Telecom for this very call — the
+     * snapshot may not have arrived yet, and the honest answer is to allow the call and warm
+     * up in the background rather than hold the ring while Room opens. The cost is that a
+     * call arriving in the first moments of a cold start is not filtered; the alternative is
+     * missing Android's deadline, which risks the call being mishandled entirely.
+     */
     private fun currentSnapshot(): RuleSnapshot {
-        if (warm) return _snapshot.value
-        // Cold start: the process was created by Telecom for this very call. Build once,
-        // under a budget well inside the window CallScreeningService gives us.
-        val built = runBlocking {
-            withTimeoutOrNull(COLD_START_BUDGET_MS) {
-                runCatching { ruleRepository.buildSnapshotNow() }.getOrNull()
-            }
-        }
-        if (built != null) {
-            _snapshot.value = built
-            warm = true
-            return built
-        }
-        Log.w(TAG, "Rule snapshot unavailable within budget; failing open.")
-        return RuleSnapshot.EMPTY
+        val current = _snapshot.value
+        if (warm) return current
+        warmInBackground()
+        return current
     }
 
-    private fun recordBlockedCall(
-        info: PhoneNumberInfo,
-        decision: ShieldDecision.Block,
-        slotIndex: Int,
-        simLabel: String,
-        displayName: String?,
-    ): Boolean {
-        val rule = decision.rule
-
-        val entity = BlockedCallEntity(
-            rawNumber = info.raw,
-            normalizedNumber = info.normalized,
-            displayName = displayName,
-            timestamp = System.currentTimeMillis(),
-            simSlot = slotIndex,
-            subscriptionId = -1,
-            simLabel = simLabel,
-            matchedRuleId = rule.id.takeIf { it != 0L },
-            matchedRuleStableId = rule.stableId,
-            matchedRuleName = rule.name,
-            category = rule.category,
-            reason = reasonFor(rule.category, rule.name),
-        )
-
-        return runBlocking {
-            withTimeoutOrNull(VAULT_WRITE_BUDGET_MS) {
-                runCatching {
-                    vaultRepository.record(entity)
-                    if (rule.id != 0L) ruleRepository.recordMatch(rule.id)
-                    true
-                }.getOrDefault(false)
-            }
-        } ?: false
+    private fun warmInBackground() {
+        scope.launch {
+            runCatching { ruleRepository.buildSnapshotNow() }
+                .onSuccess {
+                    _snapshot.value = it
+                    warm = true
+                }
+                .onFailure { Log.w(TAG, "Rule snapshot could not be built.", it) }
+        }
     }
 
     private fun reasonFor(category: RuleCategory, ruleName: String): String =
@@ -243,7 +298,5 @@ class ShieldEngine(
 
     private companion object {
         const val TAG = "ShieldEngine"
-        const val COLD_START_BUDGET_MS = 2_000L
-        const val VAULT_WRITE_BUDGET_MS = 1_500L
     }
 }
