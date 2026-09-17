@@ -214,8 +214,13 @@ the other, and turning a line off keeps its rules exactly as saved rather than d
 
 Only a first run is affected. An install that already has SIM profiles keeps whatever was
 chosen on it, including a choice made under an earlier version's defaults — the app will not
-silently re-decide which of your lines is filtered. Settings → Shield shows the live state per
-SIM, and Settings → SIM profiles is where to change it.
+silently re-decide which of your lines is filtered.
+
+Because that means an upgrade can sit on the *old* arrangement indefinitely, the first launch
+after the policy changed asks once. It states what now ships, shows what this phone is
+currently set to, and changes nothing until the user answers; "Keep current settings" is a
+real answer and is recorded as one, so the question is asked exactly once either way. A new
+install never sees it — Setup asks the same question properly.
 
 Every pack rule is scoped to both SIMs, because a numbering series describes the caller, not
 the line. What decides whether it is enforced is the per-SIM protection switch.

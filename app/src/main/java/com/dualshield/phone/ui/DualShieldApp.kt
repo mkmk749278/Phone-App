@@ -32,6 +32,7 @@ import com.dualshield.phone.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.dualshield.phone.ui.phone.PhoneViewModel
 import com.dualshield.phone.ui.settings.SettingsViewModel
 import com.dualshield.phone.ui.shield.ShieldViewModel
+import com.dualshield.phone.ui.shield.SimPolicyReviewDialog
 import com.dualshield.phone.ui.shield.VaultViewModel
 
 /** Actions that need an Activity (permission dialogs, role prompts, sharing). */
@@ -129,6 +130,17 @@ fun DualShieldApp(
             snackbarHostState.showSnackbar(it)
             settingsViewModel.consumeMessage()
         }
+    }
+
+    // Asked once, over whatever tab the user landed on, because it is about the phone's
+    // behaviour rather than about a screen — and because an upgrade does not reliably send
+    // anyone to Shield, where it would otherwise be waiting unseen.
+    if (settingsState.settings.needsSimPolicyReview && settingsState.sims.isNotEmpty()) {
+        SimPolicyReviewDialog(
+            sims = settingsState.sims,
+            onKeepCurrent = { settingsViewModel.acknowledgeSimPolicy() },
+            onApply = { settingsViewModel.acknowledgeSimPolicy(it) },
+        )
     }
 
     Scaffold(

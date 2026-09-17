@@ -81,8 +81,18 @@ before anything else: SIM 1 reads "Protected", SIM 2 reads "Unprotected · Shiel
 this SIM".
 
 > If you are upgrading rather than installing fresh, your existing choice is kept — the app
-> does not re-decide which line is filtered. Check Shield and set it the way you want before
-> running these.
+> does not re-decide which line is filtered. The first launch asks once which line to protect;
+> answer it, or set it yourself in Shield, before running these.
+
+Upgrade prompt, on an install that predates this version:
+
+- [ ] The first launch shows "Which line should Shield protect?" over whatever tab opened.
+- [ ] It states what each line is set to *now*, and shows an arrow only where it would change.
+- [ ] A back press and a tap outside do **not** dismiss it.
+- [ ] "Keep current settings" changes nothing. Force-stop, reopen: it is **not** asked again.
+- [ ] Reinstall the old settings, choose "Use recommended" instead: protection matches the
+      switches, and it is not asked again.
+- [ ] A fresh install (clear app data first) goes through Setup and never sees this prompt.
 
 With the shipped defaults, and a block rule covering both SIMs:
 

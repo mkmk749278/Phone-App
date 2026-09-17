@@ -121,6 +121,23 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settingsRepository.setOnboardingComplete(true) }
     }
 
+    /**
+     * Answers the one-time SIM policy prompt.
+     *
+     * [protectionBySlot] is null when the user chose to keep what they had, which is a real
+     * answer and is recorded as one: the prompt does not come back either way. The
+     * acknowledgement is written last, so a failure partway through means the prompt is
+     * asked again rather than silently lost with the settings half applied.
+     */
+    fun acknowledgeSimPolicy(protectionBySlot: Map<Int, Boolean>? = null) {
+        viewModelScope.launch {
+            protectionBySlot?.forEach { (slotIndex, enabled) ->
+                container.simRepository.setFilteringEnabled(slotIndex, enabled)
+            }
+            container.settingsRepository.acknowledgeSimPolicy()
+        }
+    }
+
     fun setSimLabel(slotIndex: Int, label: String) {
         viewModelScope.launch { container.simRepository.setLabel(slotIndex, label) }
     }
