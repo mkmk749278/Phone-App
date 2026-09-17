@@ -113,6 +113,16 @@ fun ContactAvatar(
     }
 }
 
+/** The label above a group of rows. One definition, so headings line up across screens. */
+@Composable
+fun SectionHeading(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+    )
+}
+
 /** The app's one card style: quiet surface, hairline outline, generous radius. */
 @Composable
 fun SectionCard(

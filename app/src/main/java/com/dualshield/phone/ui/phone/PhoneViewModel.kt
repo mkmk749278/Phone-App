@@ -41,6 +41,8 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
         val query: String = "",
         val dialInput: String = "",
         val hasCallLogPermission: Boolean = true,
+        /** How many calls Shield has rejected. Drives the single Recents entry. */
+        val blockedCallCount: Int = 0,
         val loading: Boolean = true,
         val message: String? = null,
     ) {
@@ -176,6 +178,11 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
                             ?: sims.firstOrNull { it.present }?.slotIndex,
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            container.vaultRepository.observeBlockedCallCount().collect { count ->
+                _state.update { it.copy(blockedCallCount = count) }
             }
         }
         refresh()

@@ -50,6 +50,7 @@ import com.dualshield.phone.ui.shield.AddRuleKind
 import com.dualshield.phone.ui.shield.AllowlistScreen
 import com.dualshield.phone.ui.shield.BlockedNumbersScreen
 import com.dualshield.phone.ui.shield.IndiaProtectionScreen
+import com.dualshield.phone.ui.shield.RecoveryProtectionScreen
 import com.dualshield.phone.ui.shield.RuleEditorScreen
 import com.dualshield.phone.ui.shield.RuleTesterScreen
 import com.dualshield.phone.ui.shield.ShieldScreen
@@ -229,6 +230,7 @@ fun DualShieldNavHost(
                         contactId = call.contactId,
                     )
                 },
+                onOpenBlockedCalls = { navController.navigate(Routes.VAULT) },
                 onOpenContactActions = { contact ->
                     val number = contact.phoneNumbers.firstOrNull()
                     if (number != null) {
@@ -374,9 +376,25 @@ fun DualShieldNavHost(
                 onOpenAllowlist = { navController.navigate(Routes.allowlist(null)) },
                 onOpenIndiaProtection = { navController.navigate(Routes.INDIA_PROTECTION) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
+                onOpenRecovery = { navController.navigate(Routes.RECOVERY_PROTECTION) },
                 onOpenTester = { navController.navigate(Routes.SHIELD_TEST) },
                 onPause = shieldViewModel::pauseShield,
                 onResume = shieldViewModel::resumeShield,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.RECOVERY_PROTECTION) {
+            val state by shieldViewModel.state.collectAsStateWithLifecycle()
+            val slot by shieldViewModel.recoverySlot.collectAsStateWithLifecycle()
+            RecoveryProtectionScreen(
+                sims = state.sims,
+                selectedSlot = slot,
+                settings = state.recoveryFor(slot),
+                onSelectSlot = shieldViewModel::onRecoverySlot,
+                onChange = { settings ->
+                    slot?.let { shieldViewModel.setRecoverySettings(it, settings) }
+                },
                 onBack = { navController.popBackStack() },
             )
         }

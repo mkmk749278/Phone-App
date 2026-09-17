@@ -36,6 +36,7 @@ object Routes {
     const val SHIELD_TEST = "shield/test"
     const val BLOCKED_NUMBERS = "shield/blocked"
     const val INDIA_PROTECTION = "shield/india"
+    const val RECOVERY_PROTECTION = "shield/repeated"
     const val VAULT = "shield/vault"
     const val VAULT_DETAIL = "shield/vault/{id}"
     const val ALLOWLIST = "shield/allowlist?slot={slot}"

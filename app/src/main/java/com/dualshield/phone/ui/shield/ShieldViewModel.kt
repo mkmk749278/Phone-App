@@ -11,6 +11,7 @@ import com.dualshield.phone.core.model.RuleAction
 import com.dualshield.phone.core.model.RuleCategory
 import com.dualshield.phone.core.model.SimScope
 import com.dualshield.phone.core.shield.PauseDuration
+import com.dualshield.phone.core.shield.RecoverySettings
 import com.dualshield.phone.core.shield.ShieldPause
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.core.number.PhoneNumberNormalizer
@@ -41,6 +42,7 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
         val blockedCallCount: Int = 0,
         val blockedMessageCount: Int = 0,
         val pause: ShieldPause? = null,
+        val recoveryBySlot: Map<Int, RecoverySettings> = emptyMap(),
         val message: String? = null,
     ) {
         val anyProtectionOn: Boolean get() = sims.any { it.protectionEnabled }
@@ -50,6 +52,9 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
 
         /** Whether this particular line is currently exempt from Shield. */
         fun isPausedForSlot(slotIndex: Int): Boolean = pause?.covers(slotIndex) == true
+
+        fun recoveryFor(slotIndex: Int?): RecoverySettings =
+            slotIndex?.let { recoveryBySlot[it] } ?: RecoverySettings.DEFAULT
 
         fun sim(slotIndex: Int): SimOption? = sims.firstOrNull { it.slotIndex == slotIndex }
 
@@ -143,6 +148,10 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                     if (_tester.value.slotIndex == null) {
                         _tester.update { it.copy(slotIndex = firstSlot) }
                     }
+                    if (_recoverySlot.value == null) {
+                        _recoverySlot.value = sims.firstOrNull { it.protectionEnabled }?.slotIndex
+                            ?: firstSlot
+                    }
                     if (_indiaSlot.value == null) {
                         _indiaSlot.value = sims.firstOrNull { it.protectionEnabled }?.slotIndex
                             ?: firstSlot
@@ -153,7 +162,12 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
             // The stored pause drops itself once expired, so the screen returns to
             // "Protection ON" on its own without anything having to fire a timer.
             container.settingsRepository.settings.collect { settings ->
-                _state.update { it.copy(pause = settings.shieldPause) }
+                _state.update {
+                    it.copy(
+                        pause = settings.shieldPause,
+                        recoveryBySlot = settings.recoveryBySlot,
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -211,6 +225,23 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
             ?.let { " until ${Formatting.timeOfDay(it)}" }
             .orEmpty()
         return "Shield paused on $where$until"
+    }
+
+    /** Which SIM the behavioural-protection screen is showing. */
+    private val _recoverySlot = MutableStateFlow<Int?>(null)
+    val recoverySlot: StateFlow<Int?> = _recoverySlot.asStateFlow()
+
+    fun onRecoverySlot(slotIndex: Int) {
+        _recoverySlot.value = slotIndex
+    }
+
+    fun setRecoverySettings(slotIndex: Int, settings: RecoverySettings) {
+        viewModelScope.launch {
+            runCatching { container.settingsRepository.setRecoverySettings(slotIndex, settings) }
+                .onFailure {
+                    _state.update { it.copy(message = "That setting couldn't be saved.") }
+                }
+        }
     }
 
     // ------------------------------------------------------------------ SIM state
@@ -562,6 +593,12 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                 headline = "WOULD BE BLOCKED",
                 detail = "${Formatted.number(info.normalized)} matches " +
                     "\"${decision.rule.name}\" on $simLabel.",
+            )
+            is ShieldDecision.Screen -> TestOutcome(
+                matched = true,
+                headline = "WOULD BE SILENCED",
+                detail = "${Formatted.number(info.normalized)} would not ring on $simLabel, " +
+                    "but would still appear in Recents. ${decision.summary}.",
             )
             is ShieldDecision.Allow -> TestOutcome(
                 matched = false,

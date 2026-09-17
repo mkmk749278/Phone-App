@@ -6,11 +6,14 @@ import androidx.room.PrimaryKey
 import com.dualshield.phone.core.model.RuleCategory
 
 /**
- * A Shield Vault record: one call that Shield rejected.
+ * One call that Shield rejected.
  *
- * These are written *before* the call is rejected, so a crash between the two leaves an
- * explainable record rather than a silent disappearance. Vault records are the only place
- * blocked calls appear — they are deliberately kept out of the app's Recents.
+ * Written *after* the call has already been rejected, off the screening path: storage does
+ * not get a vote on whether a block happens. Losing a record means losing an audit row, not
+ * letting an unwanted call through.
+ *
+ * These records are the only place blocked calls appear. They are deliberately kept out of
+ * Recents, which stays a plain history of calls that actually happened.
  */
 @Entity(
     tableName = "blocked_calls",

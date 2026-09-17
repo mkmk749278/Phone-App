@@ -92,6 +92,15 @@ enum class Provenance {
 
     /** Created by the user on this device. */
     USER_DEFINED,
+
+    /**
+     * Inferred from calls this device actually saw.
+     *
+     * Distinct from [USER_DEFINED] on purpose: nobody wrote this rule. Recording it as the
+     * user's own would misrepresent where the decision came from, in exactly the record the
+     * user would consult to find out.
+     */
+    ON_DEVICE_OBSERVATION,
 }
 
 /**

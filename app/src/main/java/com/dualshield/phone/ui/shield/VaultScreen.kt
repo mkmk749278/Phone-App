@@ -33,7 +33,7 @@ import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
 
 /**
- * Shield Vault.
+ * Blocked call logs — the one place blocked activity is listed.
  *
  * Kept entirely separate from Recents, which is the whole point: the user can inspect what
  * was blocked without blocked entries polluting their call history.
@@ -54,7 +54,7 @@ fun VaultScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DetailHeader(
-                title = "Shield Vault",
+                title = "Blocked call logs",
                 subtitle = "Blocked calls are kept out of Recents",
                 onBack = onBack,
                 actions = {
@@ -92,17 +92,25 @@ fun VaultScreen(
                         )
                     }
                 } else {
-                    groupedItems(items = state.blockedCalls, key = { it.id }) { record ->
+                    // One row per caller, carrying its attempt count, rather than one row
+                    // per attempt. Seventeen calls from one number is a single line saying
+                    // seventeen — the detail view still has every one of them.
+                    groupedItems(items = state.callGroups, key = { it.matchKey }) { group ->
                         VaultItem(
-                            number = record.displayName?.takeIf { it.isNotBlank() }
-                                ?: Formatting.displayNumber(record.rawNumber),
-                            ruleName = record.matchedRuleName,
+                            number = buildString {
+                                append(group.title)
+                                if (group.attemptsLabel.isNotEmpty()) {
+                                    append(" ")
+                                    append(group.attemptsLabel)
+                                }
+                            },
+                            ruleName = group.ruleName,
                             simLabel = Formatting.simLabel(
-                                record.simSlot.takeIf { it >= 0 },
-                                record.simLabel,
+                                group.records.first().simSlot.takeIf { it >= 0 },
+                                group.simLabel,
                             ),
-                            timestamp = Formatting.listTimestamp(record.timestamp),
-                            onClick = { onOpenRecord(record.id) },
+                            timestamp = Formatting.listTimestamp(group.latestTimestamp),
+                            onClick = { onOpenRecord(group.records.first().id) },
                         )
                     }
                 }
@@ -142,7 +150,7 @@ fun VaultScreen(
 
     if (confirmClear) {
         ConfirmationDialog(
-            title = "Clear Shield Vault?",
+            title = "Clear blocked history?",
             message = "This deletes the record of blocked calls. Your rules, allowed " +
                 "numbers and SIM settings stay exactly as they are.",
             confirmLabel = "Clear",

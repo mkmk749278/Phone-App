@@ -3,7 +3,13 @@ package com.dualshield.phone.shield
 import android.telecom.PhoneAccountHandle
 import android.util.Log
 import com.dualshield.phone.core.model.PhoneNumberInfo
+import com.dualshield.phone.core.model.Confidence
+import com.dualshield.phone.core.model.PatternType
+import com.dualshield.phone.core.model.Provenance
+import com.dualshield.phone.core.model.RuleAction
 import com.dualshield.phone.core.model.RuleCategory
+import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.rules.CompiledRule
 import com.dualshield.phone.core.number.PhoneNumberNormalizer
 import com.dualshield.phone.core.rules.AllowReason
 import com.dualshield.phone.core.rules.RuleEngine
@@ -21,6 +27,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.dualshield.phone.core.number.PhoneNumberFormatter
+import com.dualshield.phone.core.shield.CallerActivity
+import com.dualshield.phone.core.shield.RecoveryEvaluator
+import com.dualshield.phone.core.shield.RecoveryMode
+import com.dualshield.phone.core.shield.RecoverySettings
 import com.dualshield.phone.core.shield.ShieldPause
 import com.dualshield.phone.data.repository.SettingsRepository
 import kotlinx.coroutines.launch
@@ -64,6 +74,7 @@ class ShieldEngine(
     private val vaultRepository: VaultRepository,
     private val contactsRepository: ContactsRepository,
     private val settingsRepository: SettingsRepository,
+    private val frequencyStore: CallFrequencyStore,
 ) {
 
     private val _snapshot = MutableStateFlow(RuleSnapshot.EMPTY)
@@ -94,6 +105,10 @@ class ShieldEngine(
     @Volatile
     private var pause: ShieldPause? = null
 
+    /** Behavioural protection settings per slot, mirrored in memory for the same reason. */
+    @Volatile
+    private var recoveryBySlot: Map<Int, RecoverySettings> = emptyMap()
+
     /** The pause in force at this instant, or null. Safe to call from anywhere. */
     fun activePause(now: Long = System.currentTimeMillis()): ShieldPause? =
         pause?.takeIf { it.isActiveAt(now) }
@@ -109,8 +124,10 @@ class ShieldEngine(
         scope.launch {
             settingsRepository.settings.collect { settings ->
                 pause = settings.shieldPause
+                recoveryBySlot = settings.recoveryBySlot
             }
         }
+        frequencyStore.start()
         refreshContactKeys()
     }
 
@@ -159,14 +176,28 @@ class ShieldEngine(
             )
         }
 
+        val isContact = isSavedContact(info)
         val decision = RuleEngine.evaluate(
             snapshot = snapshot,
             info = info,
             slotIndex = slotIndex,
             channel = ShieldChannel.CALL,
-            isContact = isSavedContact(info),
+            isContact = isContact,
         )
-        return ScreeningOutcome(decision, info, slotIndex, simLabel)
+
+        // Behavioural signals are consulted only once the rules have had their say, and only
+        // when they did not reach a verdict. An explicit rule is a decision the user made;
+        // a heuristic is a guess this device is making on their behalf, and the two do not
+        // get equal standing.
+        val finalDecision = if (decision is ShieldDecision.Allow &&
+            decision.reason == AllowReason.NO_MATCH
+        ) {
+            applyRecovery(info, slotIndex, isContact, decision)
+        } else {
+            decision
+        }
+
+        return ScreeningOutcome(finalDecision, info, slotIndex, simLabel)
     }
 
     /**
@@ -288,6 +319,73 @@ class ShieldEngine(
             isContact = isSavedContact(info),
         )
     }
+
+    /**
+     * Records the attempt and asks whether local behaviour makes this caller suspicious.
+     *
+     * The attempt is recorded even when protection is set to Normal, so that turning it on
+     * later has history to work with rather than starting blind. Recording is an in-memory
+     * map update; the save to disk happens in the background.
+     */
+    private fun applyRecovery(
+        info: PhoneNumberInfo,
+        slotIndex: Int?,
+        isContact: Boolean,
+        fallback: ShieldDecision,
+    ): ShieldDecision = runCatching {
+        val key = PhoneNumberFormatter.matchKeyOf(info)
+        if (key.isEmpty()) return fallback
+
+        val now = System.currentTimeMillis()
+        val activity = frequencyStore.recordAttempt(key, now)
+        val settings = slotIndex?.let { recoveryBySlot[it] } ?: RecoverySettings.DEFAULT
+        if (!settings.isActive) return fallback
+
+        val result = RecoveryEvaluator.evaluate(activity, settings, isContact, now)
+        if (!result.suspicious) return fallback
+
+        val labels = result.signals.map { it.label }
+        when (settings.mode) {
+            RecoveryMode.SCREEN -> ShieldDecision.Screen(labels)
+            RecoveryMode.BLOCK ->
+                // Blocking needs a rule to cite, so the observation becomes one: an exact
+                // match on this number, named after what was actually seen. That way the
+                // blocked-call record says "Repeated caller · 4 days this week" rather than
+                // pointing at a rule the user never wrote.
+                heuristicRule(info, result.summary)
+                    ?.let { ShieldDecision.Block(it) }
+                    ?: ShieldDecision.Screen(labels)
+            RecoveryMode.NORMAL -> fallback
+        }
+    }.getOrElse {
+        Log.w(TAG, "Behavioural evaluation failed; allowing the call.", it)
+        fallback
+    }
+
+    /**
+     * A rule standing in for a behavioural verdict, so a heuristic block can be recorded and
+     * explained like any other.
+     *
+     * Marked as a heuristic with low confidence and local provenance, because that is what
+     * it is: an inference from this device's own observations, not an official
+     * classification of the number.
+     */
+    private fun heuristicRule(info: PhoneNumberInfo, summary: String): CompiledRule? =
+        CompiledRule.from(
+            id = 0L,
+            stableId = "heuristic-${info.normalized}",
+            name = summary.ifBlank { "Suspicious calling pattern" },
+            category = RuleCategory.BPO_COLLECTION_HEURISTIC,
+            pattern = info.normalized,
+            patternType = PatternType.EXACT,
+            action = RuleAction.BLOCK,
+            simScope = SimScope.BOTH,
+            confidence = Confidence.LOW,
+            provenance = Provenance.ON_DEVICE_OBSERVATION,
+            priority = 900,
+            builtIn = false,
+            description = "Blocked by behavioural protection, from calls seen on this device",
+        )
 
     /**
      * Whether Shield is paused for this line right now.

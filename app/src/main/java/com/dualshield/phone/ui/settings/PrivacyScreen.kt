@@ -87,7 +87,7 @@ fun PrivacyScreen(
                 text = "Android decides whether a blocked call still leaves an entry in the " +
                     "system call log, and the behaviour differs between manufacturers. " +
                     "DualShieldPhone asks the platform to skip it, but never edits the " +
-                    "system call log to force the outcome. The Shield Vault is always the " +
+                    "system call log to force the outcome. Your blocked call logs are always the " +
                     "complete record.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

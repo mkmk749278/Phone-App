@@ -26,6 +26,7 @@ import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
+import com.dualshield.phone.ui.components.SectionHeading
 import com.dualshield.phone.ui.components.VerticalSpacer
 
 /**
@@ -120,7 +121,7 @@ fun SettingsScreen(
                     )
                     RowDivider()
                     AppListRow(
-                        title = "Shield Vault",
+                        title = "Blocked call logs",
                         subtitle = "Inspect and clear blocked-call history",
                         onClick = onOpenVault,
                     )
@@ -190,11 +191,4 @@ private fun SimLabelEditor(
     }
 }
 
-@Composable
-private fun SectionHeading(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
-    )
-}
+

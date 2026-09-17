@@ -232,6 +232,7 @@ fun ConfidenceBadge(
             "${confidence.name.lowercase().replaceFirstChar { it.uppercase() }} confidence · Official"
         Provenance.COMMUNITY -> "Low confidence · Community heuristic"
         Provenance.USER_DEFINED -> "Your rule"
+        Provenance.ON_DEVICE_OBSERVATION -> "Observed on this device"
     }
     StatusPill(
         text = label,

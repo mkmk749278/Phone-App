@@ -57,7 +57,7 @@ class ShieldNotifier(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_shield_notification)
             .setContentTitle("Shield blocked a call")
-            .setContentText("Open Shield Vault to see the details.")
+            .setContentText("Open blocked call logs to see the details.")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setAutoCancel(true)

@@ -32,8 +32,18 @@ class ShieldCallScreeningService : CallScreeningService() {
             null
         }
 
-        if (outcome == null || outcome.decision !is ShieldDecision.Block) {
+        val decision = outcome?.decision
+        if (decision == null || decision is ShieldDecision.Allow) {
             respondToCall(callDetails, allowResponse())
+            return
+        }
+
+        if (decision is ShieldDecision.Screen) {
+            // Silenced, not rejected. The call still reaches the call log and can be
+            // returned; it just does not ring. Behavioural signals are about how someone is
+            // calling, not who they are, and that is not enough certainty to refuse a call.
+            respondToCall(callDetails, silenceResponse())
+            Log.i(TAG, "Silenced a call on slot ${outcome.slotIndex}: ${decision.summary}")
             return
         }
 
@@ -44,7 +54,7 @@ class ShieldCallScreeningService : CallScreeningService() {
         Log.i(
             TAG,
             "Blocked a call on slot ${outcome.slotIndex} via rule " +
-                "'${(outcome.decision as ShieldDecision.Block).rule.name}'.",
+                "'${(decision as ShieldDecision.Block).rule.name}'.",
         )
         engine?.recordBlockedCall(outcome)
         notifyBlocked()
@@ -54,6 +64,21 @@ class ShieldCallScreeningService : CallScreeningService() {
         CallResponse.Builder()
             .setDisallowCall(false)
             .setRejectCall(false)
+            .setSkipCallLog(false)
+            .setSkipNotification(false)
+            .build()
+
+    /**
+     * Silence the ringer while leaving the call alone otherwise.
+     *
+     * Not `setDisallowCall`: the call is still offered, still written to the call log, and
+     * still returnable. The user simply is not interrupted by it.
+     */
+    private fun silenceResponse(): CallResponse =
+        CallResponse.Builder()
+            .setDisallowCall(false)
+            .setRejectCall(false)
+            .setSilenceCall(true)
             .setSkipCallLog(false)
             .setSkipNotification(false)
             .build()

@@ -11,6 +11,8 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.shield.RecoveryMode
+import com.dualshield.phone.core.shield.RecoverySettings
 import com.dualshield.phone.core.shield.ShieldPause
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -36,7 +38,12 @@ data class AppSettings(
      * and — just as importantly — must still *lapse* on time if it does.
      */
     val shieldPause: ShieldPause? = null,
-)
+    /** Behavioural protection, per SIM slot. Absent means the default: off. */
+    val recoveryBySlot: Map<Int, RecoverySettings> = emptyMap(),
+) {
+    fun recoveryFor(slotIndex: Int): RecoverySettings =
+        recoveryBySlot[slotIndex] ?: RecoverySettings.DEFAULT
+}
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
@@ -55,6 +62,7 @@ class SettingsRepository(private val context: Context) {
                 showSimLabelsEverywhere = prefs[KEY_SIM_LABELS] ?: true,
                 vaultRetentionDays = prefs[KEY_VAULT_RETENTION] ?: 0,
                 shieldPause = readPause(prefs),
+                recoveryBySlot = readRecovery(prefs),
             )
         }
 
@@ -71,6 +79,40 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_PAUSE_SCOPE] = pause.scope.name
         val expiry = pause.expiresAtMillis
         if (expiry == null) prefs.remove(KEY_PAUSE_EXPIRY) else prefs[KEY_PAUSE_EXPIRY] = expiry
+    }
+
+    suspend fun setRecoverySettings(slotIndex: Int, settings: RecoverySettings) = edit { prefs ->
+        prefs[recoveryModeKey(slotIndex)] = settings.mode.name
+        prefs[recoveryFlagsKey(slotIndex)] = encodeFlags(settings)
+    }
+
+    private fun readRecovery(prefs: Preferences): Map<Int, RecoverySettings> =
+        SUPPORTED_SLOTS.mapNotNull { slot ->
+            val mode = prefs[recoveryModeKey(slot)]
+                ?.let { name -> runCatching { RecoveryMode.valueOf(name) }.getOrNull() }
+                ?: return@mapNotNull null
+            val flags = prefs[recoveryFlagsKey(slot)] ?: DEFAULT_FLAGS
+            slot to RecoverySettings(
+                mode = mode,
+                repeatedCallers = flags.getOrElse(0) { '1' } == '1',
+                highFrequencyCallers = flags.getOrElse(1) { '1' } == '1',
+                unknownCallers = flags.getOrElse(2) { '0' } == '1',
+                rapidRepeat = flags.getOrElse(3) { '1' } == '1',
+            )
+        }.toMap()
+
+    /**
+     * The detection toggles as four characters.
+     *
+     * A fixed-width string rather than four preference keys per slot: it keeps one slot's
+     * settings atomic, so a half-written change cannot leave detection in a state the user
+     * never chose.
+     */
+    private fun encodeFlags(settings: RecoverySettings): String = buildString {
+        append(if (settings.repeatedCallers) '1' else '0')
+        append(if (settings.highFrequencyCallers) '1' else '0')
+        append(if (settings.unknownCallers) '1' else '0')
+        append(if (settings.rapidRepeat) '1' else '0')
     }
 
     /** Lifts the pause, whether it was timed or indefinite. */
@@ -104,5 +146,11 @@ class SettingsRepository(private val context: Context) {
         val KEY_VAULT_RETENTION = intPreferencesKey("vault_retention_days")
         val KEY_PAUSE_SCOPE = stringPreferencesKey("shield_pause_scope")
         val KEY_PAUSE_EXPIRY = longPreferencesKey("shield_pause_expires_at")
+
+        val SUPPORTED_SLOTS = listOf(0, 1)
+        const val DEFAULT_FLAGS = "1101"
+
+        fun recoveryModeKey(slotIndex: Int) = stringPreferencesKey("recovery_mode_$slotIndex")
+        fun recoveryFlagsKey(slotIndex: Int) = stringPreferencesKey("recovery_flags_$slotIndex")
     }
 }

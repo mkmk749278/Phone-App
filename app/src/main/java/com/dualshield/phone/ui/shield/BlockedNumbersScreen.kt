@@ -82,7 +82,7 @@ fun BlockedNumbersScreen(
                     EmptyState(
                         title = "Nothing blocked yet",
                         message = "Add a number or a prefix, and calls matching it will go " +
-                            "straight to the Shield Vault instead of ringing.",
+                            "straight to your blocked call logs instead of ringing.",
                     )
                 }
             } else {
