@@ -1,6 +1,5 @@
 package com.dualshield.phone.ui.components
 
-import androidx.compose.runtime.Immutable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +25,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.ui.theme.Sizes
+import com.dualshield.phone.ui.theme.Spacing
 
 /** A SIM as the UI needs it: a slot, the user's label, and whether it is physically present. */
 @Immutable
@@ -144,7 +146,7 @@ fun SimScopeSelector(
                     .heightIn(min = MinTouchTarget)
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 RadioButton(selected = scope == selected, onClick = { onSelect(scope) })
                 Column {

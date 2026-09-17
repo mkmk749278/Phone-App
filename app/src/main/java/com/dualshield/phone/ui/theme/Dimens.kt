@@ -76,11 +76,28 @@ object Sizes {
     val minTouchTarget = 48.dp
 
     /** Avatar in a list row. */
-    val avatarRow = 44.dp
+    val avatarRow = 46.dp
 
     /** Avatar on a detail screen. */
     val avatarDetail = 92.dp
 
+    /**
+     * The shortest a list row may be.
+     *
+     * Taller than [minTouchTarget] because a row carries two lines of text, and a row sized
+     * to its text alone becomes unscannable the moment one of them wraps.
+     */
+    val listRowMinHeight = 64.dp
+
     /** Icon inside a list row's leading slot. */
     val rowIcon = 24.dp
+
+    /**
+     * Where a list row's divider starts.
+     *
+     * Derived rather than typed, so it stays aligned with the row's text when the gutter,
+     * the avatar or the gap between them changes. It was a hard-coded 75dp, which had been
+     * correct for one row's measurements and slightly wrong ever since.
+     */
+    val rowDividerInset = Spacing.rowPaddingH + avatarRow + Spacing.md
 }

@@ -31,6 +31,8 @@ import com.dualshield.phone.core.model.Provenance
 import com.dualshield.phone.core.model.RuleAction
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Sizes
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The single "is Shield doing anything" summary.
@@ -59,13 +61,13 @@ fun ShieldStatusCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = shieldColors.onHeroSurfaceMuted,
                 )
-                VerticalSpacer(3.dp)
+                VerticalSpacer(Spacing.xs)
                 Text(
                     text = headline,
                     style = MaterialTheme.typography.headlineMedium,
                     color = shieldColors.onHeroSurface,
                 )
-                VerticalSpacer(4.dp)
+                VerticalSpacer(Spacing.xs)
                 Text(
                     text = detail,
                     style = MaterialTheme.typography.labelLarge,
@@ -74,8 +76,8 @@ fun ShieldStatusCard(
             }
             Box(
                 modifier = Modifier
-                    .size(45.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(Sizes.avatarRow)
+                    .clip(MaterialTheme.shapes.medium)
                     .background(shieldColors.onHeroSurface.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -112,9 +114,9 @@ fun SimProtectionCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onOpen)
-                .padding(horizontal = 15.dp, vertical = 12.dp),
+                .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             SimSlotBadge(slotIndex = slotIndex)
             Column(modifier = Modifier.weight(1f)) {
@@ -173,9 +175,9 @@ fun ProtectionRuleRow(
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .heightIn(min = MinTouchTarget)
-            .padding(horizontal = 15.dp, vertical = 10.dp),
+            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.bodyMedium)
@@ -187,7 +189,7 @@ fun ProtectionRuleRow(
                 )
             }
             if (confidence != null && provenance != null) {
-                VerticalSpacer(4.dp)
+                VerticalSpacer(Spacing.xs)
                 ConfidenceBadge(confidence = confidence, provenance = provenance)
             }
         }
@@ -270,7 +272,7 @@ fun VaultItem(
         leading = {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(Sizes.avatarRow)
                     .clip(CircleShape)
                     .background(shieldColors.blockedContainer),
                 contentAlignment = Alignment.Center,

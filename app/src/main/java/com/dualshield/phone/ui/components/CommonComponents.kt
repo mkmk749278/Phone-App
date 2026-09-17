@@ -32,17 +32,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.dualshield.phone.ui.theme.Sizes
+import com.dualshield.phone.ui.theme.Spacing
 
-/** Minimum touch target everywhere, so nothing in the app is hard to hit one-handed. */
-val MinTouchTarget = 48.dp
+/**
+ * Minimum touch target everywhere, so nothing in the app is hard to hit one-handed.
+ *
+ * Kept as an alias of the token rather than a second declaration of the same number: this
+ * file and [Sizes] each used to state it, which is how a 42dp control got past both.
+ */
+val MinTouchTarget = Sizes.minTouchTarget
 
 @Composable
 fun SearchField(
@@ -60,7 +67,7 @@ fun SearchField(
             Icon(Icons.Filled.Search, contentDescription = null)
         },
         singleLine = true,
-        shape = RoundedCornerShape(15.dp),
+        shape = MaterialTheme.shapes.medium,
     )
 }
 
@@ -80,7 +87,7 @@ fun ContactAvatar(
     number: String?,
     modifier: Modifier = Modifier,
     photoUri: String? = null,
-    size: Dp = 46.dp,
+    size: Dp = Sizes.avatarRow,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
 ) {
@@ -119,7 +126,7 @@ fun SectionHeading(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+        modifier = Modifier.padding(start = Spacing.xs, top = Spacing.sm),
     )
 }
 
@@ -127,7 +134,7 @@ fun SectionHeading(text: String) {
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
-    contentPadding: androidx.compose.ui.unit.Dp = 4.dp,
+    contentPadding: androidx.compose.ui.unit.Dp = Spacing.xs,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
     Card(
@@ -151,7 +158,7 @@ fun SectionCard(
 }
 
 /**
- * The list row used by Recents, Messages, Contacts and the Vault.
+ * The list row used by Recents, Messages, Contacts and the blocked-call list.
  *
  * One component for all four is deliberate: the product's promise is that Shield looks like
  * the rest of the phone, and shared rows are what make that true rather than aspirational.
@@ -170,8 +177,8 @@ fun AppListRow(
         modifier = modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .heightIn(min = 64.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .heightIn(min = Sizes.listRowMinHeight)
+            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)
             .then(
                 if (contentDescription != null) {
                     Modifier.semantics { this.contentDescription = contentDescription }
@@ -180,7 +187,7 @@ fun AppListRow(
                 },
             ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         leading?.invoke()
         Column(modifier = Modifier.weight(1f)) {
@@ -191,7 +198,7 @@ fun AppListRow(
                 overflow = TextOverflow.Ellipsis,
             )
             if (!subtitle.isNullOrBlank()) {
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(Spacing.xs))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
@@ -208,7 +215,7 @@ fun AppListRow(
 @Composable
 fun RowDivider(
     modifier: Modifier = Modifier,
-    insetStart: androidx.compose.ui.unit.Dp = 75.dp,
+    insetStart: androidx.compose.ui.unit.Dp = Sizes.rowDividerInset,
 ) {
     HorizontalDivider(
         modifier = modifier.padding(start = insetStart),
@@ -227,9 +234,9 @@ fun EmptyState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 48.dp),
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         Text(
             text = title,
@@ -242,7 +249,7 @@ fun EmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         action?.let {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(Spacing.sm))
             it()
         }
     }
@@ -262,7 +269,7 @@ fun ConfirmationDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)
                 extraContent?.invoke()
             }
@@ -296,22 +303,22 @@ fun SegmentedControl(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(13.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+            .padding(Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
         options.forEachIndexed { index, label ->
             val selected = index == selectedIndex
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(11.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .background(
                         if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
                     )
                     .clickable { onSelect(index) }
-                    .heightIn(min = 42.dp)
+                    .heightIn(min = MinTouchTarget)
                     .semantics { this.contentDescription = "$label${if (selected) ", selected" else ""}" },
                 contentAlignment = Alignment.Center,
             ) {
@@ -350,22 +357,24 @@ fun StatusPill(
                 if (onClick != null) {
                     Modifier
                         .heightIn(min = MinTouchTarget)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(MaterialTheme.shapes.extraSmall)
                         .clickable(onClick = onClick)
-                        .padding(4.dp)
+                        .padding(Spacing.xs)
                 } else {
                     Modifier
                 },
             )
-            .then(if (onClick != null) Modifier else Modifier.clip(RoundedCornerShape(8.dp)))
+            .then(
+                if (onClick != null) Modifier else Modifier.clip(MaterialTheme.shapes.extraSmall),
+            )
             .semantics { if (clickLabel != null) contentDescription = clickLabel },
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(MaterialTheme.shapes.extraSmall)
                 .background(containerColor)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
         ) {
             Text(
                 text = text,
