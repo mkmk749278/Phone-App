@@ -375,6 +375,8 @@ fun DualShieldNavHost(
                 onOpenIndiaProtection = { navController.navigate(Routes.INDIA_PROTECTION) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenTester = { navController.navigate(Routes.SHIELD_TEST) },
+                onPause = shieldViewModel::pauseShield,
+                onResume = shieldViewModel::resumeShield,
                 onBack = { navController.popBackStack() },
             )
         }

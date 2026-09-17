@@ -11,6 +11,7 @@ enum class AllowReason(val explanation: String) {
     ALLOW_RULE("Matched an allow rule"),
     NO_MATCH("No blocking rule matched"),
     ENGINE_ERROR("Protection could not be evaluated, so the call was allowed"),
+    SHIELD_PAUSED("Shield is paused, so nothing is being blocked"),
 }
 
 /**
