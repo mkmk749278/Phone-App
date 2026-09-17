@@ -59,7 +59,7 @@ fun BlockedNumbersScreen(
         topBar = {
             DetailHeader(
                 title = "Blocked numbers",
-                subtitle = if (rules.isEmpty()) null else "${rules.size} entries",
+                subtitle = if (rules.isEmpty()) null else "${rules.size} blocked numbers",
                 onBack = onBack,
             )
         },
