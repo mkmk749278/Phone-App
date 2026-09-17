@@ -26,8 +26,9 @@ class SimRepository(
     /**
      * Creates the two default profiles on first run.
      *
-     * SIM 1 starts with protection OFF and SIM 2 with protection ON, matching the product
-     * default: the duty line is never filtered until the user asks for it.
+     * SIM 1 starts with protection OFF and SIM 2 with protection ON. Neither slot is
+     * assumed to be any particular *kind* of line — the app does not know which of the
+     * user's SIMs is which, and does not guess.
      */
     suspend fun ensureDefaults(now: Long) {
         if (dao.getAll().isNotEmpty()) return
@@ -35,13 +36,13 @@ class SimRepository(
             listOf(
                 SimProfileEntity(
                     slotIndex = 0,
-                    label = DEFAULT_SIM1_LABEL,
+                    label = defaultLabelForSlot(0),
                     filteringEnabled = false,
                     lastSeenAt = now,
                 ),
                 SimProfileEntity(
                     slotIndex = 1,
-                    label = DEFAULT_SIM2_LABEL,
+                    label = defaultLabelForSlot(1),
                     filteringEnabled = true,
                     lastSeenAt = now,
                 ),
@@ -119,13 +120,17 @@ class SimRepository(
             ?: -1
 
     companion object {
-        const val DEFAULT_SIM1_LABEL = "Duty"
-        const val DEFAULT_SIM2_LABEL = "Personal"
+        /**
+         * A fresh profile starts with no user label at all.
+         *
+         * The app used to seed "Duty" and "Personal", which then read back as though the
+         * user had chosen them — and quietly disagreed with whatever they had actually named
+         * their lines. An empty label means "the user has not named this SIM", and the UI
+         * falls back to plain "SIM 1" / "SIM 2" until they do. Existing profiles are never
+         * rewritten: a label already in the database is the user's and stays.
+         */
+        const val NO_LABEL = ""
 
-        fun defaultLabelForSlot(slotIndex: Int): String = when (slotIndex) {
-            0 -> DEFAULT_SIM1_LABEL
-            1 -> DEFAULT_SIM2_LABEL
-            else -> "SIM ${slotIndex + 1}"
-        }
+        fun defaultLabelForSlot(@Suppress("UNUSED_PARAMETER") slotIndex: Int): String = NO_LABEL
     }
 }

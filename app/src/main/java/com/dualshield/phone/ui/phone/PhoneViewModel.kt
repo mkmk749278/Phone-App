@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
 import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.search.DialerIndex
+import com.dualshield.phone.core.search.DialerResult
 import com.dualshield.phone.data.system.Contact
 import com.dualshield.phone.data.system.RecentCall
 import com.dualshield.phone.telecom.CallPlacer
@@ -84,17 +86,32 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Local contact matches for whatever is currently typed on the keypad. */
-    val dialSuggestions: StateFlow<List<Contact>> =
+    /**
+     * The search index, rebuilt only when the address book itself changes.
+     *
+     * Rebuilding per keystroke is what made the old dialer feel heavy; the index does all
+     * the string work once so that typing a digit is a scan of precomputed values.
+     */
+    private val dialerIndex: StateFlow<DialerIndex> =
+        _state.map { it.contacts }
+            .distinctUntilChanged()
+            .map(DialerIndex::build)
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DialerIndex.EMPTY)
+
+    /**
+     * Contact matches for whatever is currently typed on the keypad.
+     *
+     * Search starts at the first digit rather than the second: the whole point of T9 is that
+     * the list narrows as you go, and waiting for a second keypress makes the first one feel
+     * like it did nothing.
+     */
+    val dialSuggestions: StateFlow<List<DialerResult>> =
         combine(
-            _state.map { it.contacts }.distinctUntilChanged(),
-            dialInput.debounce(100L).distinctUntilChanged(),
-        ) { contacts, input ->
-            if (input.length < 2) {
-                emptyList()
-            } else {
-                container.contactsRepository.search(contacts, input).take(6)
-            }
+            dialerIndex,
+            dialInput.debounce(60L).distinctUntilChanged(),
+        ) { index, input ->
+            if (input.isEmpty()) emptyList() else index.search(input, limit = DIAL_RESULT_LIMIT)
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -118,7 +135,7 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
             CallDetails(
                 number = number,
                 contact = state.contacts.firstOrNull { contact ->
-                    contact.phoneNumbers.any { it.filter(Char::isDigit).endsWith(digits) }
+                    contact.phoneNumbers.any { it.raw.filter(Char::isDigit).endsWith(digits) }
                 },
                 history = state.recents.filter {
                     it.number.filter(Char::isDigit).endsWith(digits)
@@ -166,10 +183,21 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             // Only show the loading state when there is nothing cached to show instead.
             if (_state.value.recents.isEmpty()) _state.update { it.copy(loading = true) }
-            val recents = container.callLogRepository.recentCalls(force = force) { accountId ->
-                container.simRepository.slotForPhoneAccountId(accountId)
-            }
-            val contacts = container.contactsRepository.loadContacts(force = force)
+            // Contacts first: Recents resolves each caller's name and photo through this
+            // index as it is built, so a row never renders with a number and then pops to a
+            // name a frame later.
+            val contactIndex = container.contactsRepository.contactIndex(force = force)
+            val contacts = container.contactsRepository.cachedContacts
+            val recents = container.callLogRepository.recentCalls(
+                force = force,
+                contacts = contactIndex,
+                slotForAccountId = { accountId ->
+                    container.simRepository.slotForPhoneAccountId(accountId)
+                },
+                subscriptionIdForSlot = { slot ->
+                    container.simRepository.subscriptionIdForSlot(slot).takeIf { it >= 0 }
+                },
+            )
             _state.update {
                 it.copy(
                     recents = recents,
@@ -264,5 +292,15 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
             SimScope.SIM1 -> sims.firstOrNull { it.slotIndex == 0 }?.display ?: "SIM 1"
             SimScope.SIM2 -> sims.firstOrNull { it.slotIndex == 1 }?.display ?: "SIM 2"
         }
+    }
+
+    private companion object {
+        /**
+         * How many dialer results to keep.
+         *
+         * Matched to the fixed-height results area above the keypad: enough that scrolling
+         * finds a deeper match, few enough that the list is never a wall of near-misses.
+         */
+        const val DIAL_RESULT_LIMIT = 12
     }
 }

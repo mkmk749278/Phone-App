@@ -81,13 +81,19 @@ object PhoneNumberNormalizer {
         val hadPlus = source.startsWith("+")
         var digits = source.filter { it.isDigit() }
         if (digits.isEmpty()) {
+            // Letters but no digits at all is an SMS sender ID (`AXISBK`, `VM-HDFCBK`), not a
+            // withheld caller. The test is deliberately strict — a source carrying any digit
+            // stays on the numeric path below, so a vanity or partially-lettered dial string
+            // is normalized exactly as it always was.
+            val sender = senderIdOf(source)
             return PhoneNumberInfo(
                 raw = source,
                 normalized = "",
                 nationalDigits = "",
                 countryCode = null,
-                kind = NumberKind.PRIVATE,
+                kind = if (sender != null) NumberKind.ALPHANUMERIC_SENDER else NumberKind.PRIVATE,
                 matchCandidates = emptyList(),
+                senderId = sender,
             )
         }
 
@@ -188,6 +194,25 @@ object PhoneNumberNormalizer {
             if (normalized.isNotEmpty()) add(normalized)
             if (national.isNotEmpty() && national != normalized) add(national)
         }
+
+    /**
+     * The sender token for an alphanumeric SMS address, or null when [source] carries no
+     * letters at all.
+     *
+     * Indian DLT sender IDs arrive with an operator/route prefix attached — `VM-AXISBK`,
+     * `AD-HDFCBK`, `TX-SBIINB`. The trailing token is the part the user recognises, so that
+     * is what is kept; the two-letter route prefix is dropped.
+     */
+    private fun senderIdOf(source: String): String? {
+        if (source.none { it.isLetter() }) return null
+        val cleaned = source.uppercase().filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+        val token = cleaned
+            .split('-', '_')
+            .lastOrNull { it.isNotBlank() }
+            ?: return null
+        // A bare route prefix on its own ("VM-") leaves nothing meaningful behind.
+        return token.takeIf { it.any(Char::isLetter) }
+    }
 
     private fun isWithheldMarker(source: String): Boolean {
         val lowered = source.lowercase()

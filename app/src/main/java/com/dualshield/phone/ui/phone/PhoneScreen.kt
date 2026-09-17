@@ -161,7 +161,9 @@ private fun RecentCallRow(
     AppListRow(
         title = title,
         subtitle = subtitle,
-        leading = { ContactAvatar(call.displayName, call.number) },
+        leading = {
+            ContactAvatar(call.displayName, call.number, photoUri = call.photoUri)
+        },
         trailing = {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -181,7 +183,13 @@ private fun FavoriteRow(contact: Contact, onOpenDetails: (String) -> Unit) {
     AppListRow(
         title = contact.displayName,
         subtitle = Formatting.displayNumber(contact.primaryNumber),
-        leading = { ContactAvatar(contact.displayName, contact.primaryNumber) },
+        leading = {
+            ContactAvatar(
+                contact.displayName,
+                contact.primaryNumber,
+                photoUri = contact.photoUri,
+            )
+        },
         onClick = { contact.primaryNumber?.let(onOpenDetails) },
     )
 }

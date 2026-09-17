@@ -59,10 +59,16 @@ class RuleIndex private constructor(
 
     private fun matchesSpecial(special: SpecialRule?, info: PhoneNumberInfo): Boolean =
         when (special) {
+            // An alphanumeric SMS sender is deliberately not a "private caller": nothing was
+            // withheld. It does still count as unknown, so a user who had turned on the
+            // unknown-sender rule keeps exactly the coverage they had before sender IDs were
+            // split out of PRIVATE.
             SpecialRule.PRIVATE_CALLER -> info.kind == NumberKind.PRIVATE
             SpecialRule.INTERNATIONAL_CALLER -> info.kind == NumberKind.INTERNATIONAL
             SpecialRule.UNKNOWN_CALLER ->
-                info.kind == NumberKind.PRIVATE || info.kind == NumberKind.MALFORMED
+                info.kind == NumberKind.PRIVATE ||
+                    info.kind == NumberKind.MALFORMED ||
+                    info.kind == NumberKind.ALPHANUMERIC_SENDER
             null -> false
         }
 

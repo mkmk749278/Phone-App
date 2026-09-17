@@ -161,6 +161,7 @@ fun DualShieldNavHost(
             CallDetailsScreen(
                 number = number,
                 displayName = details.contact?.displayName,
+                photoUri = details.contact?.photoUri,
                 history = details.history,
                 sims = state.sims,
                 defaultSlot = state.selectedSlot,

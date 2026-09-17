@@ -35,8 +35,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 
 /** Minimum touch target everywhere, so nothing in the app is hard to hit one-handed. */
 val MinTouchTarget = 48.dp
@@ -61,13 +64,23 @@ fun SearchField(
     )
 }
 
-/** Circular monogram. Decorative — the row's own text carries the accessible label. */
+/**
+ * The one avatar in the app.
+ *
+ * Every surface that shows a person — Recents, the dialer, Call Details, Contacts, Messages,
+ * the in-call screen — draws this, so a contact cannot have a photo on one screen and a
+ * monogram on the next. When [photoUri] resolves, the real contact photo is shown; while it
+ * loads, or when there is none, the monogram stands in rather than a blank circle.
+ *
+ * Decorative — the row's own text carries the accessible label.
+ */
 @Composable
 fun ContactAvatar(
     name: String?,
     number: String?,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 46.dp,
+    photoUri: String? = null,
+    size: Dp = 46.dp,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
 ) {
@@ -84,6 +97,19 @@ fun ContactAvatar(
             style = MaterialTheme.typography.labelLarge,
             color = contentColor,
         )
+
+        // The photo is drawn over the monogram rather than swapped in for it. Coil decodes
+        // and caches off the main thread, and anything that does not resolve — no photo, a
+        // thumbnail the provider will no longer serve, a contact deleted since the list was
+        // built — simply leaves the monogram visible instead of a hole in the row.
+        if (!photoUri.isNullOrBlank()) {
+            AsyncImage(
+                model = photoUri,
+                contentDescription = null,
+                modifier = Modifier.size(size).clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        }
     }
 }
 

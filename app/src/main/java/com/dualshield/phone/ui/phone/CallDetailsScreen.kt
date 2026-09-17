@@ -49,6 +49,7 @@ import com.dualshield.phone.ui.shield.ScopeChoiceDialog
 fun CallDetailsScreen(
     number: String,
     displayName: String?,
+    photoUri: String?,
     history: List<RecentCall>,
     sims: List<SimOption>,
     defaultSlot: Int?,
@@ -75,7 +76,7 @@ fun CallDetailsScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             VerticalSpacer(14.dp)
-            ContactAvatar(displayName, number, size = 72.dp)
+            ContactAvatar(displayName, number, photoUri = photoUri, size = 72.dp)
             VerticalSpacer(10.dp)
             Text(
                 text = displayName?.takeIf { it.isNotBlank() }

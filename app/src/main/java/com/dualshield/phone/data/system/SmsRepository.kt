@@ -9,6 +9,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsManager
+import com.dualshield.phone.core.model.ContactLookup
+import com.dualshield.phone.core.model.SenderIdentity
+import com.dualshield.phone.core.model.SenderType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -22,7 +25,16 @@ data class SmsThread(
     val timestamp: Long,
     val unreadCount: Int,
     val simSlot: Int?,
-)
+    /**
+     * Who the thread is with, resolved once when the list is built.
+     *
+     * Carrying the identity on the row is what stopped every bank and operator showing up as
+     * "Private number": the Messages list no longer has to guess from the address alone.
+     */
+    val sender: SenderIdentity,
+) {
+    val senderType: SenderType get() = sender.type
+}
 
 /** One message inside a conversation. */
 @Immutable
@@ -65,10 +77,13 @@ class SmsRepository(private val context: Context) {
 
     suspend fun threads(
         force: Boolean = false,
+        contacts: ContactLookup = ContactLookup.None,
         slotForSubscriptionId: (Int) -> Int?,
-    ): List<SmsThread> = threadCache.getOrLoad(force) { queryThreads(slotForSubscriptionId) }
+    ): List<SmsThread> =
+        threadCache.getOrLoad(force) { queryThreads(contacts, slotForSubscriptionId) }
 
     private suspend fun queryThreads(
+        contacts: ContactLookup,
         slotForSubscriptionId: (Int) -> Int?,
     ): List<SmsThread> = withContext(Dispatchers.IO) {
         if (!hasReadPermission()) return@withContext emptyList()
@@ -102,14 +117,16 @@ class SmsRepository(private val context: Context) {
                     if (isUnread) unread[threadId] = (unread[threadId] ?: 0) + 1
                     if (byThread.containsKey(threadId)) continue
                     val subId = cursor.getInt(6)
+                    val sender = SenderIdentity.resolve(address, contacts)
                     byThread[threadId] = SmsThread(
                         threadId = threadId,
                         address = address,
-                        displayName = null,
+                        displayName = sender.displayName,
                         snippet = cursor.getString(3)?.trim().orEmpty(),
                         timestamp = cursor.getLong(4),
                         unreadCount = 0,
                         simSlot = slotForSubscriptionId(subId),
+                        sender = sender,
                     )
                 }
             }
