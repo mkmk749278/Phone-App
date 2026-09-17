@@ -51,6 +51,10 @@ fun SettingsScreen(
     onOpenVault: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenRulePacks: () -> Unit,
+    onOpenBlockedNumbers: () -> Unit,
+    onOpenAllowlist: () -> Unit,
+    onOpenIndiaBlocklist: () -> Unit,
+    onOpenRecovery: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -68,21 +72,22 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            item(key = "setup") {
-                SectionCard {
-                    AppListRow(
-                        title = "Setup",
-                        subtitle = if (state.readyToProtect) {
-                            "Shield can screen calls"
-                        } else {
-                            "Shield cannot block calls yet — finish setup"
-                        },
-                        onClick = onOpenSetup,
-                    )
+            // Setup only earns the top of the screen while something is actually wrong.
+            // A permanent "Setup" row at the top of Settings is a checklist the user has
+            // already completed, sitting above the things they came here to change.
+            if (!state.readyToProtect) {
+                item(key = "setup") {
+                    SectionCard {
+                        AppListRow(
+                            title = "Finish setup",
+                            subtitle = "Shield cannot block calls yet",
+                            onClick = onOpenSetup,
+                        )
+                    }
                 }
             }
 
-            item(key = "sims-heading") { SectionHeading("SIM profiles") }
+            item(key = "sims-heading") { SectionHeading("SIM & calling") }
             items(items = state.sims, key = { it.slotIndex }) { sim ->
                 SimLabelEditor(
                     slotIndex = sim.slotIndex,
@@ -92,8 +97,6 @@ fun SettingsScreen(
                     onLabelChange = { onSimLabelChange(sim.slotIndex, it) },
                 )
             }
-
-            item(key = "calling-heading") { SectionHeading("Calling") }
             item(key = "calling-card") {
                 SectionCard {
                     AppListRow(
@@ -101,11 +104,62 @@ fun SettingsScreen(
                         subtitle = "What this device allows, and why",
                         onClick = onOpenCallRecording,
                     )
+                    if (state.readyToProtect) {
+                        RowDivider()
+                        AppListRow(
+                            title = "Setup",
+                            subtitle = "Default apps and permissions",
+                            onClick = onOpenSetup,
+                        )
+                    }
                 }
             }
 
+            // Everything Shield can do, reachable from one place. These screens all existed
+            // but could only be found by going into Shield and then into a SIM, which is
+            // two levels of navigation to reach a list of blocked numbers.
             item(key = "shield-heading") { SectionHeading("Shield & blocking") }
             item(key = "shield-card") {
+                SectionCard {
+                    AppListRow(
+                        title = "Shield status",
+                        subtitle = shieldSummary(state),
+                        onClick = onOpenShield,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "Blocked numbers",
+                        subtitle = "Numbers you have blocked yourself",
+                        onClick = onOpenBlockedNumbers,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "Allowed numbers",
+                        subtitle = "Always ring, whatever a rule says",
+                        onClick = onOpenAllowlist,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "India blocklist",
+                        subtitle = "Built-in rules for Indian numbering series",
+                        onClick = onOpenIndiaBlocklist,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "Blocked call logs",
+                        subtitle = "What Shield has turned away",
+                        onClick = onOpenVault,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "Recovery Call Protection",
+                        subtitle = "Act on numbers that call unusually often",
+                        onClick = onOpenRecovery,
+                    )
+                }
+            }
+
+            item(key = "notify-card") {
                 SectionCard {
                     Row(
                         modifier = Modifier
@@ -130,22 +184,16 @@ fun SettingsScreen(
                             onCheckedChange = onNotifyChange,
                         )
                     }
-                    RowDivider()
+                }
+            }
+
+            // Last, and on its own, because importing a rule file replaces what is there.
+            item(key = "advanced-heading") { SectionHeading("Advanced") }
+            item(key = "advanced-card") {
+                SectionCard {
                     AppListRow(
-                        title = "Shield",
-                        subtitle = "Protection, SIM rules, blocked numbers and allowlist",
-                        onClick = onOpenShield,
-                    )
-                    RowDivider()
-                    AppListRow(
-                        title = "Blocked call logs",
-                        subtitle = "Inspect and clear blocked-call history",
-                        onClick = onOpenVault,
-                    )
-                    RowDivider()
-                    AppListRow(
-                        title = "Rule packs",
-                        subtitle = "Import and export rules as JSON",
+                        title = "Advanced rules",
+                        subtitle = "Back up or restore your rules",
                         onClick = onOpenRulePacks,
                     )
                 }
@@ -209,3 +257,21 @@ private fun SimLabelEditor(
 }
 
 
+
+
+/**
+ * What the Shield row says, in one line.
+ *
+ * Names the lines that are protected rather than counting rules. A rule count is a number
+ * about the app's internals; which of your two lines is being filtered is the thing you
+ * came to Settings to check.
+ */
+private fun shieldSummary(state: SettingsViewModel.UiState): String {
+    val protectedSims = state.sims.filter { it.protectionEnabled }
+    return when {
+        state.sims.isEmpty() -> "Protection, rules and blocked numbers"
+        protectedSims.isEmpty() -> "No line is being filtered"
+        protectedSims.size == state.sims.size -> "Every line is protected"
+        else -> "${protectedSims.joinToString { it.display }} protected"
+    }
+}

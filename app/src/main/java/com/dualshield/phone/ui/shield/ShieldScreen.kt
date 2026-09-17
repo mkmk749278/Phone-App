@@ -33,6 +33,7 @@ import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
+import com.dualshield.phone.ui.components.SectionHeading
 import com.dualshield.phone.ui.components.ShieldStatusCard
 import com.dualshield.phone.ui.components.SimProtectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
@@ -110,81 +111,8 @@ fun ShieldScreen(
             // Pausing is a first-class action, not something buried in Advanced: opening a
             // short call window is a thing this user does most weeks. The treatment stays
             // quiet on purpose — a paused Shield should be obvious, not alarming.
-            item(key = "pause") {
-                SectionCard {
-                    if (state.isPaused) {
-                        AppListRow(
-                            title = "Resume Shield",
-                            subtitle = "Turn protection back on now",
-                            leading = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
-                            onClick = onResume,
-                        )
-                    } else {
-                        AppListRow(
-                            title = "Pause Shield",
-                            subtitle = "Take calls you would normally block, then let " +
-                                "protection come back on its own",
-                            leading = { Icon(Icons.Filled.Pause, contentDescription = null) },
-                            onClick = { choosingPause = true },
-                        )
-                    }
-                }
-            }
-
-            // The rules, front and centre.
-            item(key = "rules") {
-                SectionCard {
-                    AppListRow(
-                        title = "Blocked numbers",
-                        subtitle = if (state.blockedCount == 0) {
-                            "Nothing blocked yet"
-                        } else {
-                            "${state.blockedCount} numbers and prefixes"
-                        },
-                        leading = {
-                            Icon(
-                                Icons.Filled.Block,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        onClick = onOpenBlockedNumbers,
-                    )
-                    RowDivider()
-                    AppListRow(
-                        title = "Allowed numbers",
-                        subtitle = if (state.allowRules.isEmpty()) {
-                            "Nothing on the allowlist"
-                        } else {
-                            "${state.allowRules.size} always ring through"
-                        },
-                        leading = {
-                            Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        onClick = onOpenAllowlist,
-                    )
-                    RowDivider()
-                    AppListRow(
-                        title = "India blocklist",
-                        subtitle = "Promotional, transactional, toll-free and premium-rate series",
-                        leading = {
-                            Icon(
-                                Icons.Filled.Shield,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
-                        onClick = onOpenIndiaProtection,
-                    )
-                }
-            }
-
             item(key = "sims-heading") {
-                Text("Your SIMs", style = MaterialTheme.typography.titleMedium)
+                SectionHeading("Your SIMs")
             }
 
             items(items = state.sims, key = { it.slotIndex }) { sim ->
@@ -212,22 +140,107 @@ fun ShieldScreen(
                 )
             }
 
-            item(key = "tools") {
+            item(key = "pause") {
+                SectionCard {
+                    if (state.isPaused) {
+                        AppListRow(
+                            title = "Resume Shield",
+                            subtitle = "Turn protection back on now",
+                            leading = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                            onClick = onResume,
+                        )
+                    } else {
+                        AppListRow(
+                            title = "Pause Shield",
+                            subtitle = "Take calls you would normally block, then let " +
+                                "protection come back on its own",
+                            leading = { Icon(Icons.Filled.Pause, contentDescription = null) },
+                            onClick = { choosingPause = true },
+                        )
+                    }
+                }
+            }
+
+            item(key = "blocking-heading") { SectionHeading("Blocking") }
+            item(key = "blocking") {
                 SectionCard {
                     AppListRow(
+                        title = "Blocked numbers",
+                        subtitle = if (state.blockedCount == 0) {
+                            "Nothing blocked yet"
+                        } else {
+                            "${state.blockedCount} numbers and prefixes"
+                        },
+                        leading = {
+                            Icon(
+                                Icons.Filled.Block,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = onOpenBlockedNumbers,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "Allowed numbers",
+                        subtitle = if (state.allowRules.isEmpty()) {
+                            "Nothing allowed yet"
+                        } else {
+                            "${state.allowRules.size} always ring through"
+                        },
+                        leading = {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        onClick = onOpenAllowlist,
+                    )
+                    RowDivider()
+                    AppListRow(
                         title = "Blocked call logs",
-                        subtitle = "${state.blockedCallCount} blocked calls · " +
-                            "${state.blockedMessageCount} filtered messages",
+                        subtitle = "${state.blockedCallCount} calls · " +
+                            "${state.blockedMessageCount} messages",
                         onClick = onOpenVault,
                     )
                     RowDivider()
+                    // One line, not four. The screen behind it explains itself; repeating
+                    // the explanation here is what made this list feel like documentation.
                     AppListRow(
-                        title = "Repeated callers",
-                        subtitle = "Act on numbers that call this phone unusually often",
+                        title = "India blocklist",
+                        subtitle = "Built-in rules for Indian numbering series",
+                        leading = {
+                            Icon(
+                                Icons.Filled.Shield,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        onClick = onOpenIndiaProtection,
+                    )
+                }
+            }
+
+            item(key = "smart-heading") { SectionHeading("Smart protection") }
+            item(key = "smart") {
+                SectionCard {
+                    // §87 lists "Recovery Call Protection" and "Repeated callers" as two
+                    // rows. They are one screen in this app, and two rows leading to the
+                    // same place would be a worse answer to "where do I change this" than
+                    // one row with the name the rest of the product uses.
+                    AppListRow(
+                        title = "Recovery Call Protection",
+                        subtitle = "Act on numbers that call unusually often",
                         leading = { Icon(Icons.Filled.Repeat, contentDescription = null) },
                         onClick = onOpenRecovery,
                     )
-                    RowDivider()
+                }
+            }
+
+            item(key = "advanced-heading") { SectionHeading("Advanced") }
+            item(key = "advanced") {
+                SectionCard {
                     AppListRow(
                         title = "Rule tester",
                         subtitle = "Check a number before you trust a rule",

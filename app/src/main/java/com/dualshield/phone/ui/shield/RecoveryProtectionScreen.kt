@@ -49,11 +49,12 @@ fun RecoveryProtectionScreen(
     modifier: Modifier = Modifier,
 ) {
     val presentSims = sims.filter { it.present }
+    val selected = selectedSlot?.let { slot -> sims.firstOrNull { it.slotIndex == slot } }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { DetailHeader(title = "Repeated callers", onBack = onBack) },
+        topBar = { DetailHeader(title = "Recovery Call Protection", onBack = onBack) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -90,6 +91,17 @@ fun RecoveryProtectionScreen(
                 }
             }
 
+            if (selected != null && !selected.protectionEnabled) {
+                item(key = "protection-off") {
+                    ProtectionOffNotice(
+                        sim = selected,
+                        detail = "Shield is not enforcing anything on ${selected.display}, " +
+                            "so nothing on this screen changes how calls on that line " +
+                            "behave. The settings are kept for when it is.",
+                    )
+                }
+            }
+
             item(key = "mode-heading") { SectionHeading("What to do") }
             item(key = "mode") {
                 SectionCard {
@@ -106,7 +118,16 @@ fun RecoveryProtectionScreen(
             }
 
             if (settings.isActive) {
-                item(key = "signals-heading") { SectionHeading("What counts") }
+                item(key = "signals-heading") {
+                    SectionHeading("What counts")
+                    Text(
+                        text = "These switches decide which patterns are noticed, not what " +
+                            "happens next. Turning one on adds it to the evidence; what " +
+                            "Shield then does about a suspicious caller is the choice above.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 item(key = "signals") {
                     SectionCard {
                         ToggleRow(
