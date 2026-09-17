@@ -29,6 +29,7 @@ class ContactIndexTest {
         phoneNumbers = numbers.map(::number),
         photoUri = "content://contacts/photo/$id",
         starred = false,
+        hasName = true,
     )
 
     private fun indexOf(vararg contacts: Contact): ContactIndex {

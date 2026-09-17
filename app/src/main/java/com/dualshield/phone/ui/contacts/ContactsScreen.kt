@@ -78,7 +78,12 @@ fun ContactsScreen(
                 groupedItems(items = contacts, key = { it.id }) { contact ->
                     AppListRow(
                         title = contact.displayName,
-                        subtitle = Formatting.displayNumber(contact.primaryNumber),
+                        // A contact with no name already shows its number as its name.
+                        // Printing the number underneath it as well renders the same digits
+                        // twice, one line above the other, which reads as two duplicate
+                        // entries rather than one unnamed contact. What is useful on that
+                        // second line instead is what kind of line it is.
+                        subtitle = contactSubtitle(contact),
                         leading = {
                             ContactAvatar(
                                 contact.displayName,
@@ -92,6 +97,28 @@ fun ContactsScreen(
             }
 
             item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
+        }
+    }
+}
+
+/**
+ * The second line of a contact row.
+ *
+ * The number when there is a name above it, the line's type when the name *is* the number,
+ * and a note when the contact has more numbers than the one being shown — a row that silently
+ * picks one of three numbers is a row that sends someone to the wrong one.
+ */
+internal fun contactSubtitle(contact: Contact): String? {
+    val extra = contact.phoneNumbers.size - 1
+    val more = if (extra > 0) " · +$extra more" else ""
+    return if (contact.hasName) {
+        Formatting.displayNumber(contact.primaryNumber) + more
+    } else {
+        val type = contact.phoneNumbers.firstOrNull()?.typeLabel?.takeIf { it.isNotBlank() }
+        when {
+            type != null -> type + more
+            extra > 0 -> more.removePrefix(" · ")
+            else -> null
         }
     }
 }
