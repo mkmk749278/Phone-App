@@ -8,8 +8,10 @@ import com.dualshield.phone.core.number.PhoneNumberNormalizer
 import com.dualshield.phone.core.rules.AllowReason
 import com.dualshield.phone.core.rules.RuleEngine
 import com.dualshield.phone.core.rules.RuleSnapshot
+import com.dualshield.phone.core.rules.ShieldChannel
 import com.dualshield.phone.core.rules.ShieldDecision
 import com.dualshield.phone.data.db.entity.BlockedCallEntity
+import com.dualshield.phone.data.db.entity.BlockedMessageEntity
 import com.dualshield.phone.data.repository.RuleRepository
 import com.dualshield.phone.data.repository.SimRepository
 import com.dualshield.phone.data.repository.VaultRepository
@@ -78,12 +80,19 @@ class ShieldEngine(
             ?: slotIndex?.let { SimRepository.defaultLabelForSlot(it) }
             ?: "Unknown SIM"
 
-        val decision = RuleEngine.evaluate(snapshot, info, slotIndex)
+        val contactName = lookupContact(info)
+        val decision = RuleEngine.evaluate(
+            snapshot = snapshot,
+            info = info,
+            slotIndex = slotIndex,
+            channel = ShieldChannel.CALL,
+            isContact = contactName != null,
+        )
         if (decision !is ShieldDecision.Block) {
             return ScreeningOutcome(decision, info, slotIndex, simLabel, vaultRecorded = false)
         }
 
-        val recorded = recordBlockedCall(info, decision, slotIndex ?: -1, simLabel)
+        val recorded = recordBlockedCall(info, decision, slotIndex ?: -1, simLabel, contactName)
         if (!recorded) {
             Log.w(TAG, "Vault write failed; allowing the call rather than dropping it silently.")
             return ScreeningOutcome(
@@ -97,10 +106,83 @@ class ShieldEngine(
         return ScreeningOutcome(decision, info, slotIndex, simLabel, vaultRecorded = true)
     }
 
-    /** Evaluates without any side effects. Backs the rule tester. */
-    fun dryRun(rawNumber: String, slotIndex: Int?): Pair<PhoneNumberInfo, ShieldDecision> {
+    /**
+     * Screens an incoming message.
+     *
+     * A blocked message is recorded and kept out of the user's attention, but the message
+     * itself is still written to the system inbox by the caller — Shield hides messages, it
+     * never destroys them.
+     *
+     * @return true when the message should be treated as filtered.
+     */
+    fun screenMessage(
+        rawNumber: String?,
+        body: String,
+        timestamp: Long,
+        subscriptionId: Int,
+    ): Boolean {
         val info = PhoneNumberNormalizer.normalize(rawNumber)
-        return info to RuleEngine.evaluate(currentSnapshot(), info, slotIndex)
+        val slotIndex = runCatching {
+            simRepository.slotForSubscriptionId(subscriptionId)
+        }.getOrNull()
+        val snapshot = currentSnapshot()
+        val contactName = lookupContact(info)
+
+        val decision = RuleEngine.evaluate(
+            snapshot = snapshot,
+            info = info,
+            slotIndex = slotIndex,
+            channel = ShieldChannel.SMS,
+            isContact = contactName != null,
+        )
+        val block = decision as? ShieldDecision.Block ?: return false
+
+        val simLabel = slotIndex?.let { snapshot.forSlot(it)?.label } ?: "Unknown SIM"
+        return runBlocking {
+            withTimeoutOrNull(VAULT_WRITE_BUDGET_MS) {
+                runCatching {
+                    vaultRepository.recordMessage(
+                        BlockedMessageEntity(
+                            rawNumber = info.raw,
+                            normalizedNumber = info.normalized,
+                            displayName = contactName,
+                            body = body,
+                            timestamp = timestamp,
+                            simSlot = slotIndex ?: -1,
+                            simLabel = simLabel,
+                            matchedRuleName = block.rule.name,
+                            reason = reasonFor(block.rule.category, block.rule.name),
+                        ),
+                    )
+                    if (block.rule.id != 0L) ruleRepository.recordMatch(block.rule.id)
+                    true
+                }.getOrDefault(false)
+            }
+        } ?: false
+    }
+
+    /** Evaluates without any side effects. Backs the rule tester. */
+    fun dryRun(
+        rawNumber: String,
+        slotIndex: Int?,
+        channel: ShieldChannel = ShieldChannel.CALL,
+    ): Pair<PhoneNumberInfo, ShieldDecision> {
+        val info = PhoneNumberNormalizer.normalize(rawNumber)
+        return info to RuleEngine.evaluate(
+            snapshot = currentSnapshot(),
+            info = info,
+            slotIndex = slotIndex,
+            channel = channel,
+            isContact = lookupContact(info) != null,
+        )
+    }
+
+    /** Contact name for a caller, or null. Swallows every failure — never blocks on this. */
+    private fun lookupContact(info: PhoneNumberInfo): String? {
+        if (!info.hasDigits) return null
+        return runCatching {
+            contactsRepository.displayNameFor(info.raw.takeIf { it.isNotBlank() } ?: info.normalized)
+        }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
     private fun currentSnapshot(): RuleSnapshot {
@@ -126,11 +208,9 @@ class ShieldEngine(
         decision: ShieldDecision.Block,
         slotIndex: Int,
         simLabel: String,
+        displayName: String?,
     ): Boolean {
         val rule = decision.rule
-        val displayName = runCatching {
-            contactsRepository.displayNameFor(info.raw.takeIf { it.isNotBlank() })
-        }.getOrNull()
 
         val entity = BlockedCallEntity(
             rawNumber = info.raw,

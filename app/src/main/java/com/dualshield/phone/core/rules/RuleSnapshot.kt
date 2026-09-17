@@ -14,6 +14,7 @@ data class SimRuleSet(
     val slotIndex: Int,
     val label: String,
     val filteringEnabled: Boolean,
+    val allowContacts: Boolean,
     val allowNumbers: Set<String>,
     val userAllow: RuleIndex,
     val userBlock: RuleIndex,
@@ -26,6 +27,7 @@ data class SimRuleSet(
             slotIndex = slotIndex,
             label = label,
             filteringEnabled = false,
+            allowContacts = true,
             allowNumbers = emptySet(),
             userAllow = RuleIndex.EMPTY,
             userBlock = RuleIndex.EMPTY,
@@ -63,6 +65,7 @@ data class RuleSnapshot(
             filteringEnabled: Boolean,
             allowNumbers: Set<String>,
             rules: List<CompiledRule>,
+            allowContacts: Boolean = true,
         ): SimRuleSet {
             val scoped = rules.filter { it.simScope.coversSlot(slotIndex) }
 
@@ -87,6 +90,7 @@ data class RuleSnapshot(
                 slotIndex = slotIndex,
                 label = label,
                 filteringEnabled = filteringEnabled,
+                allowContacts = allowContacts,
                 allowNumbers = allowNumbers,
                 userAllow = RuleIndex.build(userAllow),
                 userBlock = RuleIndex.build(userBlock),

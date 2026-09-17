@@ -29,8 +29,10 @@ object RuleEngine {
         snapshot: RuleSnapshot,
         info: PhoneNumberInfo,
         slotIndex: Int?,
+        channel: ShieldChannel = ShieldChannel.CALL,
+        isContact: Boolean = false,
     ): ShieldDecision = try {
-        evaluateInternal(snapshot, info, slotIndex)
+        evaluateInternal(snapshot, info, slotIndex, channel, isContact)
     } catch (t: Throwable) {
         // Fail open, loudly in logs but silently for the user: a crash must never
         // become a blocked call.
@@ -41,6 +43,8 @@ object RuleEngine {
         snapshot: RuleSnapshot,
         info: PhoneNumberInfo,
         slotIndex: Int?,
+        channel: ShieldChannel,
+        isContact: Boolean,
     ): ShieldDecision {
         if (slotIndex == null || slotIndex < 0) {
             return ShieldDecision.Allow(AllowReason.SIM_UNRESOLVED)
@@ -54,14 +58,21 @@ object RuleEngine {
         if (PhoneNumberNormalizer.isEmergency(info)) {
             return ShieldDecision.Allow(AllowReason.EMERGENCY)
         }
+        // Someone in the address book is someone the user chose to know. This is the single
+        // most effective guard against a broad prefix rule swallowing a real caller.
+        if (isContact && simRules.allowContacts) {
+            return ShieldDecision.Allow(AllowReason.CONTACT)
+        }
         if (info.matchCandidates.any { it in simRules.allowNumbers }) {
             return ShieldDecision.Allow(AllowReason.ALLOWLIST)
         }
 
+        val accepts: (CompiledRule) -> Boolean = { channel.appliesTo(it) }
+
         simRules.userAllow.match(info)?.let {
             return ShieldDecision.Allow(AllowReason.ALLOW_RULE, it)
         }
-        simRules.userBlock.match(info)?.let {
+        simRules.userBlock.match(info, accepts)?.let {
             return ShieldDecision.Block(it)
         }
 
@@ -70,10 +81,10 @@ object RuleEngine {
         simRules.builtInAllow.match(info)?.let {
             return ShieldDecision.Allow(AllowReason.ALLOW_RULE, it)
         }
-        simRules.builtInBlock.match(info)?.let {
+        simRules.builtInBlock.match(info, accepts)?.let {
             return ShieldDecision.Block(it)
         }
-        simRules.heuristicBlock.match(info)?.let {
+        simRules.heuristicBlock.match(info, accepts)?.let {
             return ShieldDecision.Block(it)
         }
 

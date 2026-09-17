@@ -30,6 +30,9 @@ interface SimProfileDao {
     @Query("UPDATE sim_profiles SET label = :label WHERE slotIndex = :slotIndex")
     suspend fun setLabel(slotIndex: Int, label: String)
 
+    @Query("UPDATE sim_profiles SET allowContacts = :allow WHERE slotIndex = :slotIndex")
+    suspend fun setAllowContacts(slotIndex: Int, allow: Boolean)
+
     @Query(
         "UPDATE sim_profiles SET subscriptionId = :subscriptionId, carrierName = :carrierName, " +
             "lastSeenAt = :seenAt WHERE slotIndex = :slotIndex",

@@ -20,19 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dualshield.phone.core.model.Confidence
-import com.dualshield.phone.core.model.PatternType
-import com.dualshield.phone.core.model.Provenance
-import com.dualshield.phone.core.model.RuleCategory
 import com.dualshield.phone.data.db.entity.CallRuleEntity
+import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.EmptyState
 import com.dualshield.phone.ui.components.ProtectionRuleRow
+import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.groupedItems
 
 /**
- * One SIM's rules, and only that SIM's rules.
+ * One SIM's protection, and only that SIM's.
  *
  * The header repeats which SIM is being edited on every screen in this flow. That redundancy
  * is intentional — there must never be a moment where the user is unsure which line they are
@@ -44,26 +43,21 @@ fun SimRulesScreen(
     state: ShieldViewModel.UiState,
     onBack: () -> Unit,
     onToggleProtection: (Boolean) -> Unit,
+    onToggleAllowContacts: (Boolean) -> Unit,
     onToggleRule: (Long, Boolean) -> Unit,
+    onToggleRuleAction: (CallRuleEntity) -> Unit,
     onOpenRule: (Long) -> Unit,
     onAddRule: () -> Unit,
     onOpenAllowlist: () -> Unit,
+    onOpenIndiaProtection: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sim = state.sim(slotIndex)
     val rules = state.rulesForSlot(slotIndex)
+    val userRules = rules.filterNot { it.builtIn }
+    val enabledBuiltIns = rules.filter { it.builtIn && it.enabled }
     val allowCount = state.allowRulesForSlot(slotIndex).size
-
-    val official = rules.filter {
-        it.provenance == Provenance.OFFICIAL ||
-            it.provenance == Provenance.OFFICIAL_OR_ESTABLISHED
-    }
-    val userRules = rules.filter { it.provenance == Provenance.USER_DEFINED && !it.builtIn }
-    val optional = rules.filter {
-        it.confidence == Confidence.LOW ||
-            it.patternType == PatternType.SPECIAL ||
-            it.category == RuleCategory.BPO_COLLECTION_HEURISTIC
-    }.distinctBy { it.id }
+    val protectionOn = sim?.protectionEnabled == true
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -88,151 +82,112 @@ fun SimRulesScreen(
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            item {
+            item(key = "switches") {
                 SectionCard {
+                    SwitchRow(
+                        title = "Protection",
+                        detail = if (protectionOn) {
+                            "On · calls on this SIM are filtered"
+                        } else {
+                            "Off · every call on this SIM rings"
+                        },
+                        checked = protectionOn,
+                        onCheckedChange = onToggleProtection,
+                    )
+                    RowDivider(insetStart = 15.dp)
+                    SwitchRow(
+                        title = "Always allow saved contacts",
+                        detail = "Anyone in your contacts gets through, whatever a rule says",
+                        checked = sim?.allowContacts != false,
+                        enabled = protectionOn,
+                        onCheckedChange = onToggleAllowContacts,
+                    )
+                }
+                VerticalSpacer(12.dp)
+            }
+
+            item(key = "links") {
+                SectionCard {
+                    AppListRow(
+                        title = "Allowed numbers",
+                        subtitle = "$allowCount numbers always ring through on this SIM",
+                        onClick = onOpenAllowlist,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "India protection",
+                        subtitle = "${enabledBuiltIns.size} built-in rules active on this SIM",
+                        onClick = onOpenIndiaProtection,
+                    )
+                }
+                VerticalSpacer(14.dp)
+            }
+
+            item(key = "your-rules-heading") {
+                Text("Your rules on this SIM", style = MaterialTheme.typography.titleMedium)
+                VerticalSpacer(8.dp)
+            }
+
+            if (userRules.isEmpty()) {
+                item(key = "empty") {
+                    EmptyState(
+                        title = "No rules of your own",
+                        message = "Add a number or prefix to filter calls on this line.",
+                    )
+                }
+            } else {
+                groupedItems(items = userRules, key = { it.id }, dividerInset = 15.dp) { rule ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 15.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Protection", style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                text = if (sim?.protectionEnabled == true) {
-                                    "On · calls on this SIM are filtered"
-                                } else {
-                                    "Off · every call on this SIM rings"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        ProtectionRuleRow(
+                            name = RuleDisplay.pattern(rule),
+                            detail = RuleDisplay.subtitle(rule, state.sims),
+                            action = rule.action,
+                            enabled = rule.enabled,
+                            onClick = { onOpenRule(rule.id) },
+                            onToggleAction = { onToggleRuleAction(rule) },
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(
-                            checked = sim?.protectionEnabled == true,
-                            onCheckedChange = onToggleProtection,
+                            checked = rule.enabled,
+                            onCheckedChange = { onToggleRule(rule.id, it) },
+                            modifier = Modifier.padding(end = 12.dp),
                         )
                     }
                 }
             }
 
-            item {
-                SectionCard {
-                    com.dualshield.phone.ui.components.AppListRow(
-                        title = "Allowed numbers",
-                        subtitle = "$allowCount numbers always ring through on this SIM",
-                        onClick = onOpenAllowlist,
-                    )
-                }
-            }
-
-            if (userRules.isNotEmpty()) {
-                item { SectionHeading("Your rules") }
-                item {
-                    SectionCard {
-                        userRules.forEach { rule ->
-                            RuleRow(rule, onToggleRule, onOpenRule)
-                        }
-                    }
-                }
-            }
-
-            if (official.isNotEmpty()) {
-                item { SectionHeading("India protection") }
-                item {
-                    SectionCard {
-                        official.forEach { rule ->
-                            RuleRow(rule, onToggleRule, onOpenRule)
-                        }
-                    }
-                }
-            }
-
-            if (optional.isNotEmpty()) {
-                item { SectionHeading("Optional heuristics") }
-                item {
-                    Text(
-                        text = "Heuristic rules can occasionally match legitimate callers, " +
-                            "so they start switched off.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                item {
-                    SectionCard {
-                        optional.forEach { rule ->
-                            RuleRow(rule, onToggleRule, onOpenRule)
-                        }
-                    }
-                }
-            }
-
-            if (rules.isEmpty()) {
-                item {
-                    EmptyState(
-                        title = "No rules on this SIM",
-                        message = "Add a rule to start filtering calls on this line.",
-                    )
-                }
-            }
-
-            item { VerticalSpacer(90.dp) }
+            item(key = "bottom-space") { VerticalSpacer(90.dp) }
         }
     }
 }
 
 @Composable
-private fun SectionHeading(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(top = 4.dp),
-    )
-}
-
-@Composable
-private fun RuleRow(
-    rule: CallRuleEntity,
-    onToggleRule: (Long, Boolean) -> Unit,
-    onOpenRule: (Long) -> Unit,
+private fun SwitchRow(
+    title: String,
+    detail: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ProtectionRuleRow(
-            name = rule.name,
-            detail = ruleDetail(rule),
-            action = rule.action,
-            enabled = rule.enabled,
-            confidence = rule.confidence,
-            provenance = rule.provenance,
-            onClick = { onOpenRule(rule.id) },
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = rule.enabled,
-            onCheckedChange = { onToggleRule(rule.id, it) },
-            modifier = Modifier.padding(end = 12.dp),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
-}
-
-private fun ruleDetail(rule: CallRuleEntity): String = buildString {
-    append(rule.category.displayName)
-    if (rule.patternType != PatternType.SPECIAL) {
-        append(" · ")
-        append(
-            when (rule.patternType) {
-                PatternType.EXACT -> rule.pattern
-                PatternType.PREFIX -> "starts with ${rule.pattern}"
-                PatternType.CONTAINS -> "contains ${rule.pattern}"
-                PatternType.REGEX -> "pattern ${rule.pattern}"
-                else -> rule.pattern
-            },
-        )
-    }
-    if (rule.matchCount > 0) append(" · ${rule.matchCount} blocked")
 }

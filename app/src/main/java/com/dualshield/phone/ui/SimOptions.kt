@@ -30,6 +30,7 @@ fun AppContainer.simOptionsFlow(): Flow<List<SimOption>> =
                         label = profile.label,
                         present = presentSlots.isEmpty() || profile.slotIndex in presentSlots,
                         protectionEnabled = profile.filteringEnabled,
+                        allowContacts = profile.allowContacts,
                     )
                 }
         }

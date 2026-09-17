@@ -1,5 +1,6 @@
 package com.dualshield.phone.data.system
 
+import androidx.compose.runtime.Immutable
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** A row in the Messages list. */
+@Immutable
 data class SmsThread(
     val threadId: Long,
     val address: String,
@@ -23,6 +25,7 @@ data class SmsThread(
 )
 
 /** One message inside a conversation. */
+@Immutable
 data class SmsMessage(
     val id: Long,
     val threadId: Long,
@@ -42,6 +45,16 @@ data class SmsMessage(
  */
 class SmsRepository(private val context: Context) {
 
+    private val threadCache = SystemDataCache<List<SmsThread>>()
+
+    /** The last loaded conversation list, readable without suspending. */
+    val cachedThreads: List<SmsThread> get() = threadCache.value.orEmpty()
+
+    val isThreadCacheFresh: Boolean get() = threadCache.isFresh
+
+    /** Call after sending or receiving, so the list does not wait out the TTL. */
+    fun invalidateThreadCache() = threadCache.invalidate()
+
     fun hasReadPermission(): Boolean =
         context.checkSelfPermission(Manifest.permission.READ_SMS) ==
             PackageManager.PERMISSION_GRANTED
@@ -51,6 +64,11 @@ class SmsRepository(private val context: Context) {
             PackageManager.PERMISSION_GRANTED
 
     suspend fun threads(
+        force: Boolean = false,
+        slotForSubscriptionId: (Int) -> Int?,
+    ): List<SmsThread> = threadCache.getOrLoad(force) { queryThreads(slotForSubscriptionId) }
+
+    private suspend fun queryThreads(
         slotForSubscriptionId: (Int) -> Int?,
     ): List<SmsThread> = withContext(Dispatchers.IO) {
         if (!hasReadPermission()) return@withContext emptyList()
@@ -194,12 +212,18 @@ class SmsRepository(private val context: Context) {
         null
     }
 
-    /** Stores an inbound message when we hold the default-SMS role. */
+    /**
+     * Stores an inbound message when we hold the default-SMS role.
+     *
+     * [markRead] is set for a message Shield filtered: the message is still saved and still
+     * readable, it just does not announce itself.
+     */
     fun persistIncoming(
         address: String,
         body: String,
         timestamp: Long,
         subscriptionId: Int,
+        markRead: Boolean = false,
     ): Boolean = runCatching {
         context.contentResolver.insert(
             Telephony.Sms.Inbox.CONTENT_URI,
@@ -208,8 +232,8 @@ class SmsRepository(private val context: Context) {
                 put(Telephony.Sms.BODY, body)
                 put(Telephony.Sms.DATE, timestamp)
                 put(Telephony.Sms.DATE_SENT, timestamp)
-                put(Telephony.Sms.READ, 0)
-                put(Telephony.Sms.SEEN, 0)
+                put(Telephony.Sms.READ, if (markRead) 1 else 0)
+                put(Telephony.Sms.SEEN, if (markRead) 1 else 0)
                 put(Telephony.Sms.SUBSCRIPTION_ID, subscriptionId)
             },
         ) != null

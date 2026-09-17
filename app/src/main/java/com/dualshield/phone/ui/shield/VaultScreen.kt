@@ -26,11 +26,11 @@ import com.dualshield.phone.ui.components.ConfirmationDialog
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.EmptyState
 import com.dualshield.phone.ui.components.Formatting
-import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SegmentedControl
 import com.dualshield.phone.ui.components.VaultItem
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.groupedItems
 
 /**
  * Shield Vault.
@@ -92,23 +92,18 @@ fun VaultScreen(
                         )
                     }
                 } else {
-                    item {
-                        SectionCard {
-                            state.blockedCalls.forEachIndexed { index, record ->
-                                VaultItem(
-                                    number = record.displayName?.takeIf { it.isNotBlank() }
-                                        ?: Formatting.displayNumber(record.rawNumber),
-                                    ruleName = record.matchedRuleName,
-                                    simLabel = Formatting.simLabel(
-                                        record.simSlot.takeIf { it >= 0 },
-                                        record.simLabel,
-                                    ),
-                                    timestamp = Formatting.listTimestamp(record.timestamp),
-                                    onClick = { onOpenRecord(record.id) },
-                                )
-                                if (index != state.blockedCalls.lastIndex) RowDivider()
-                            }
-                        }
+                    groupedItems(items = state.blockedCalls, key = { it.id }) { record ->
+                        VaultItem(
+                            number = record.displayName?.takeIf { it.isNotBlank() }
+                                ?: Formatting.displayNumber(record.rawNumber),
+                            ruleName = record.matchedRuleName,
+                            simLabel = Formatting.simLabel(
+                                record.simSlot.takeIf { it >= 0 },
+                                record.simLabel,
+                            ),
+                            timestamp = Formatting.listTimestamp(record.timestamp),
+                            onClick = { onOpenRecord(record.id) },
+                        )
                     }
                 }
             } else {
@@ -122,17 +117,12 @@ fun VaultScreen(
                         )
                     }
                 } else {
-                    item {
-                        SectionCard {
-                            state.blockedMessages.forEachIndexed { index, record ->
-                                AppListRow(
-                                    title = record.displayName
-                                        ?: Formatting.displayNumber(record.rawNumber),
-                                    subtitle = record.body.take(80),
-                                )
-                                if (index != state.blockedMessages.lastIndex) RowDivider()
-                            }
-                        }
+                    groupedItems(items = state.blockedMessages, key = { it.id }) { record ->
+                        AppListRow(
+                            title = record.displayName
+                                ?: Formatting.displayNumber(record.rawNumber),
+                            subtitle = record.body.take(80),
+                        )
                     }
                 }
             }

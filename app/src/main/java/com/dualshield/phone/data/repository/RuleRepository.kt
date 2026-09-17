@@ -82,6 +82,7 @@ class RuleRepository(
                 filteringEnabled = profile.filteringEnabled,
                 allowNumbers = allowNumbers,
                 rules = compiled,
+                allowContacts = profile.allowContacts,
             )
         }
         return RuleSnapshot(perSlot = perSlot, revision = System.currentTimeMillis())
@@ -113,6 +114,8 @@ class RuleRepository(
         displayName: String?,
         scope: SimScope,
         now: Long,
+        blocksCalls: Boolean = true,
+        blocksSms: Boolean = true,
     ): Long {
         val normalized = PhoneNumberNormalizer.normalizedOrEmpty(rawNumber)
         require(normalized.isNotEmpty()) { "Cannot block an empty number" }
@@ -122,7 +125,14 @@ class RuleRepository(
 
         val stableId = "user-block-$normalized-${scope.name}"
         ruleDao.getByStableId(stableId)?.let { existing ->
-            ruleDao.update(existing.copy(enabled = true, updatedAt = now))
+            ruleDao.update(
+                existing.copy(
+                    enabled = true,
+                    blocksCalls = blocksCalls,
+                    blocksSms = blocksSms,
+                    updatedAt = now,
+                ),
+            )
             return existing.id
         }
         return ruleDao.insert(
@@ -140,6 +150,8 @@ class RuleRepository(
                 provenance = Provenance.USER_DEFINED,
                 description = "Blocked from the app",
                 builtIn = false,
+                blocksCalls = blocksCalls,
+                blocksSms = blocksSms,
                 createdAt = now,
                 updatedAt = now,
             ),
@@ -273,6 +285,8 @@ class RuleRepository(
                     confidence = rule.confidence.name,
                     provenance = rule.provenance.name,
                     description = rule.description,
+                    blocksCalls = rule.blocksCalls,
+                    blocksSms = rule.blocksSms,
                 )
             },
         )
@@ -299,4 +313,6 @@ fun CallRuleEntity.compile(): CompiledRule? = CompiledRule.from(
     priority = priority,
     builtIn = builtIn,
     description = description,
+    blocksCalls = blocksCalls,
+    blocksSms = blocksSms,
 )

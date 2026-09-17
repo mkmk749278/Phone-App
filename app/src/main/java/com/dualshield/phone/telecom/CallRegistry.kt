@@ -1,5 +1,6 @@
 package com.dualshield.phone.telecom
 
+import androidx.compose.runtime.Immutable
 import android.annotation.SuppressLint
 import android.os.Build
 import android.telecom.Call
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** The subset of a Telecom [Call] the in-call UI actually renders. */
+@Immutable
 data class UiCall(
     val id: String,
     val number: String?,

@@ -1,5 +1,6 @@
 package com.dualshield.phone.data.system
 
+import androidx.compose.runtime.Immutable
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,6 +11,7 @@ import kotlinx.coroutines.withContext
 enum class CallDirection { INCOMING, OUTGOING, MISSED, REJECTED, VOICEMAIL, OTHER }
 
 /** One entry in the Phone → Recents list. Blocked calls never appear here. */
+@Immutable
 data class RecentCall(
     val id: Long,
     val number: String,
@@ -30,12 +32,28 @@ data class RecentCall(
  */
 class CallLogRepository(private val context: Context) {
 
+    private val cache = SystemDataCache<List<RecentCall>>()
+
+    /** The last loaded recents, readable without suspending, for an instant first frame. */
+    val cachedRecents: List<RecentCall> get() = cache.value.orEmpty()
+
+    val isCacheFresh: Boolean get() = cache.isFresh
+
+    /** Call after placing a call, so Recents reflects it rather than waiting out the TTL. */
+    fun invalidateCache() = cache.invalidate()
+
     fun hasPermission(): Boolean =
         context.checkSelfPermission(Manifest.permission.READ_CALL_LOG) ==
             PackageManager.PERMISSION_GRANTED
 
     suspend fun recentCalls(
         limit: Int = 200,
+        force: Boolean = false,
+        slotForAccountId: (String?) -> Int?,
+    ): List<RecentCall> = cache.getOrLoad(force) { queryRecents(limit, slotForAccountId) }
+
+    private suspend fun queryRecents(
+        limit: Int,
         slotForAccountId: (String?) -> Int?,
     ): List<RecentCall> = withContext(Dispatchers.IO) {
         if (!hasPermission()) return@withContext emptyList()

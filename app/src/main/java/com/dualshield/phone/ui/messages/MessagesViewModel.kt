@@ -1,5 +1,6 @@
 package com.dualshield.phone.ui.messages
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
@@ -7,15 +8,26 @@ import com.dualshield.phone.data.system.SmsMessage
 import com.dualshield.phone.data.system.SmsThread
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.simOptionsFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Messages tab: the conversation list, one open conversation, and sending. */
+@OptIn(FlowPreview::class)
 class MessagesViewModel(private val container: AppContainer) : ViewModel() {
 
+    @Immutable
     data class UiState(
         val threads: List<SmsThread> = emptyList(),
         val sims: List<SimOption> = emptyList(),
@@ -25,18 +37,7 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
         val blockedMessageCount: Int = 0,
         val loading: Boolean = true,
         val message: String? = null,
-    ) {
-        val filteredThreads: List<SmsThread>
-            get() {
-                val trimmed = query.trim().lowercase()
-                if (trimmed.isEmpty()) return threads
-                return threads.filter {
-                    it.address.contains(trimmed) ||
-                        it.snippet.lowercase().contains(trimmed) ||
-                        it.displayName?.lowercase()?.contains(trimmed) == true
-                }
-            }
-    }
+    )
 
     data class ConversationState(
         val threadId: Long = -1,
@@ -48,11 +49,39 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
         val loading: Boolean = false,
     )
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(
+        UiState(
+            threads = container.smsRepository.cachedThreads,
+            loading = container.smsRepository.cachedThreads.isEmpty(),
+        ),
+    )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private val _conversation = MutableStateFlow(ConversationState())
     val conversation: StateFlow<ConversationState> = _conversation.asStateFlow()
+
+    private val query = MutableStateFlow("")
+
+
+    /** Search results, computed off the main thread once the query settles. */
+    val filteredThreads: StateFlow<List<SmsThread>> =
+        combine(
+            _state.map { it.threads }.distinctUntilChanged(),
+            query.debounce(120L).distinctUntilChanged(),
+        ) { threads, text ->
+            val trimmed = text.trim().lowercase()
+            if (trimmed.isEmpty()) {
+                threads
+            } else {
+                threads.filter {
+                    it.address.contains(trimmed) ||
+                        it.snippet.lowercase().contains(trimmed) ||
+                        it.displayName?.lowercase()?.contains(trimmed) == true
+                }
+            }
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         viewModelScope.launch {
@@ -74,15 +103,23 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
         refresh()
     }
 
-    fun refresh() {
+    /** Reloads only when the data is actually old; revisiting a tab should be instant. */
+    fun refreshIfStale() {
+        if (container.smsRepository.isThreadCacheFresh) return
+        refresh()
+    }
+
+    fun refresh(force: Boolean = false) {
         viewModelScope.launch {
-            _state.update { it.copy(loading = true) }
-            val threads = container.smsRepository.threads { subId ->
+            if (_state.value.threads.isEmpty()) _state.update { it.copy(loading = true) }
+            val threads = container.smsRepository.threads(force = force) { subId ->
                 container.simRepository.slotForSubscriptionId(subId)
             }
+            // One cached index, rather than a content-provider query per conversation.
+            val nameIndex = container.contactsRepository.cachedNameIndex()
             val named = threads.map { thread ->
                 thread.copy(
-                    displayName = container.contactsRepository.displayNameFor(thread.address),
+                    displayName = nameIndex[container.contactsRepository.matchKey(thread.address)],
                 )
             }
             _state.update {
@@ -95,7 +132,10 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    fun onQueryChange(value: String) = _state.update { it.copy(query = value) }
+    fun onQueryChange(value: String) {
+        _state.update { it.copy(query = value) }
+        query.value = value
+    }
 
     fun onSelectSim(slotIndex: Int) = _state.update { it.copy(selectedSlot = slotIndex) }
 
@@ -132,6 +172,7 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
             _conversation.update { it.copy(sending = true) }
             val error = container.smsRepository.send(current.address, body, subscriptionId)
             if (error == null) {
+                container.smsRepository.invalidateThreadCache()
                 val simLabel = _state.value.sims.firstOrNull { it.slotIndex == slot }?.display
                 _conversation.update { it.copy(draft = "", sending = false) }
                 _state.update {
@@ -146,4 +187,5 @@ class MessagesViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
+
 }

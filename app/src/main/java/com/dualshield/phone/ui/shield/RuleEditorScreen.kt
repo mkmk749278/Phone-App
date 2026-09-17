@@ -3,6 +3,7 @@ package com.dualshield.phone.ui.shield
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -58,6 +59,8 @@ fun RuleEditorScreen(
     onAction: (RuleAction) -> Unit,
     onDescription: (String) -> Unit,
     onEnabled: (Boolean) -> Unit,
+    onBlocksCalls: (Boolean) -> Unit,
+    onBlocksSms: (Boolean) -> Unit,
     onTestNumber: (String) -> Unit,
     onTest: () -> Unit,
     onSave: () -> Unit,
@@ -171,6 +174,38 @@ fun RuleEditorScreen(
                 selectedIndex = if (draft.action == RuleAction.BLOCK) 0 else 1,
                 onSelect = { onAction(if (it == 0) RuleAction.BLOCK else RuleAction.ALLOW) },
             )
+
+            if (draft.action == RuleAction.BLOCK) {
+                Text("Block what?", style = MaterialTheme.typography.titleMedium)
+                SectionCard {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 15.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Calls", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.weight(1f))
+                        Switch(checked = draft.blocksCalls, onCheckedChange = onBlocksCalls)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 15.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Messages", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                text = "Filtered messages are still saved, just not announced.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(checked = draft.blocksSms, onCheckedChange = onBlocksSms)
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = draft.description,

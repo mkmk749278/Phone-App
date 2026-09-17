@@ -34,4 +34,6 @@ data class RulePackRuleDto(
     val confidence: String = "LOW",
     val provenance: String = "COMMUNITY",
     val description: String = "",
+    val blocksCalls: Boolean = true,
+    val blocksSms: Boolean = true,
 )

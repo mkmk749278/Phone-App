@@ -10,23 +10,27 @@ import java.util.Locale
 /** Formatting helpers shared by every screen, kept out of composables so they stay testable. */
 object Formatting {
 
-    // Formatters are rebuilt when the device locale changes. Caching them in a static
-    // field would freeze whichever locale happened to be active when the class loaded.
-    private var cachedLocale: Locale? = null
-    private lateinit var timeFormat: SimpleDateFormat
-    private lateinit var dayFormat: SimpleDateFormat
-    private lateinit var fullFormat: SimpleDateFormat
+    private class Formats(val locale: Locale) {
+        val time: SimpleDateFormat = SimpleDateFormat("h:mm a", locale)
+        val day: SimpleDateFormat = SimpleDateFormat("d MMM", locale)
+        val full: SimpleDateFormat = SimpleDateFormat("d MMM yyyy · h:mm a", locale)
+    }
 
-    @Synchronized
-    private fun formats(): Triple<SimpleDateFormat, SimpleDateFormat, SimpleDateFormat> {
+    /**
+     * Formatters are rebuilt when the device locale changes, but read without locking.
+     *
+     * This runs once per row per frame while a list is flung, so a `@Synchronized` read
+     * here showed up as contention. A volatile reference costs nothing, and the worst a
+     * race can do is build one extra Formats instance.
+     */
+    @Volatile
+    private var formats: Formats = Formats(Locale.getDefault())
+
+    private fun formats(): Formats {
         val locale = Locale.getDefault()
-        if (cachedLocale != locale) {
-            cachedLocale = locale
-            timeFormat = SimpleDateFormat("h:mm a", locale)
-            dayFormat = SimpleDateFormat("d MMM", locale)
-            fullFormat = SimpleDateFormat("d MMM yyyy · h:mm a", locale)
-        }
-        return Triple(timeFormat, dayFormat, fullFormat)
+        val current = formats
+        if (current.locale == locale) return current
+        return Formats(locale).also { formats = it }
     }
 
     /** "10:42" today, "Yesterday", "17 Sep" beyond that — the convention every phone uses. */
@@ -38,16 +42,16 @@ object Formatting {
             timeInMillis = now
             add(Calendar.DAY_OF_YEAR, -1)
         }
-        val (time, day, _) = formats()
+        val formats = formats()
         return when {
-            sameDay(then, today) -> time.format(Date(millis))
+            sameDay(then, today) -> formats.time.format(Date(millis))
             sameDay(then, yesterday) -> "Yesterday"
-            else -> day.format(Date(millis))
+            else -> formats.day.format(Date(millis))
         }
     }
 
     fun fullTimestamp(millis: Long): String =
-        if (millis <= 0L) "" else formats().third.format(Date(millis))
+        if (millis <= 0L) "" else formats().full.format(Date(millis))
 
     fun duration(seconds: Long): String {
         if (seconds <= 0L) return ""

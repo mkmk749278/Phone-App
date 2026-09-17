@@ -1,5 +1,6 @@
 package com.dualshield.phone.ui.shield
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
  */
 class VaultViewModel(private val container: AppContainer) : ViewModel() {
 
+    @Immutable
     data class UiState(
         val blockedCalls: List<BlockedCallEntity> = emptyList(),
         val blockedMessages: List<BlockedMessageEntity> = emptyList(),

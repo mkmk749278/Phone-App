@@ -11,33 +11,34 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.ui.components.SectionCard
-import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 
+private val PROMISES = listOf(
+    "Works entirely on this device" to
+        "No Internet permission. The build fails if any dependency adds one.",
+    "Each SIM is separate" to
+        "A rule you write for one line can never affect the other.",
+    "Nothing disappears silently" to
+        "Blocked calls are kept in the Shield Vault, and filtered messages are still saved.",
+)
+
 /**
- * First run: three short steps, no permission checklist.
+ * The welcome screen.
  *
- * Each permission is requested at the point it is needed instead, which is both better UX
- * and a smaller ask — a user who never opens Messages is never asked for SMS.
+ * One page, then straight into Setup. The previous three-step flow asked for permissions
+ * behind a "Continue" button and then dropped the user into an app that looked fine but
+ * could not actually block anything if they had said no.
  */
 @Composable
 fun OnboardingScreen(
-    sims: List<SimOption>,
-    onRequestScreeningRole: () -> Unit,
-    onRequestPhonePermissions: () -> Unit,
-    onFinish: () -> Unit,
+    onContinue: () -> Unit,
+    onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var step by remember { mutableIntStateOf(0) }
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -50,104 +51,37 @@ fun OnboardingScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.Start,
         ) {
-            when (step) {
-                0 -> {
-                    Text(
-                        "Welcome to\nDualShieldPhone",
-                        style = MaterialTheme.typography.displaySmall,
-                    )
-                    VerticalSpacer(12.dp)
-                    Text(
-                        "Your calls and messages, your rules, your device.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    VerticalSpacer(28.dp)
-                    Button(
-                        onClick = {
-                            onRequestPhonePermissions()
-                            step = 1
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Continue")
-                    }
-                }
+            Text(
+                text = "Welcome to\nDualShieldPhone",
+                style = MaterialTheme.typography.displaySmall,
+            )
+            VerticalSpacer(12.dp)
+            Text(
+                text = "Your calls and messages, your rules, your device.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
-                1 -> {
-                    Text("Your SIMs", style = MaterialTheme.typography.displaySmall)
-                    VerticalSpacer(12.dp)
-                    Text(
-                        "Each SIM keeps its own rules. Nothing you set up on one line can " +
-                            "affect the other.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    VerticalSpacer(20.dp)
-                    SectionCard {
-                        val display = sims.ifEmpty {
-                            listOf(
-                                SimOption(0, "Duty", present = false, protectionEnabled = false),
-                                SimOption(1, "Personal", present = false, protectionEnabled = true),
-                            )
-                        }
-                        display.forEach { sim ->
-                            Column(
-                                modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                            ) {
-                                Text(sim.display, style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    text = if (sim.protectionEnabled) {
-                                        "Protection ON"
-                                    } else {
-                                        "Protection OFF"
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                    VerticalSpacer(12.dp)
-                    Text(
-                        "You can change this anytime.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    VerticalSpacer(24.dp)
-                    Button(onClick = { step = 2 }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Continue")
-                    }
-                }
-
-                else -> {
-                    Text("Let Shield screen calls", style = MaterialTheme.typography.displaySmall)
-                    VerticalSpacer(12.dp)
-                    Text(
-                        "Android only lets one app screen incoming calls. Granting this is " +
-                            "what allows Shield to stop an unwanted call before it rings.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    VerticalSpacer(24.dp)
-                    Button(
-                        onClick = onRequestScreeningRole,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Allow call screening")
-                    }
-                    VerticalSpacer(6.dp)
-                    TextButton(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
-                        Text("Skip for now")
+            VerticalSpacer(24.dp)
+            SectionCard {
+                PROMISES.forEach { (title, detail) ->
+                    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp)) {
+                        Text(title, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = detail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
 
-            if (step > 0) {
-                VerticalSpacer(4.dp)
-                TextButton(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (step == 2) "Done" else "Skip setup")
-                }
+            VerticalSpacer(28.dp)
+            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
+                Text("Set up")
+            }
+            TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+                Text("Look around first")
             }
         }
     }

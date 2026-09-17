@@ -30,11 +30,18 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { /* Results are read back through each repository's own permission check. */ }
+    ) {
+        // A denied permission caches an empty list. Granting it later has to drop those
+        // caches, or the user sits looking at an empty screen until the TTL expires.
+        invalidateCaches()
+    }
 
     private val roleLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
-    ) { /* Role state is re-read on the next Settings visit. */ }
+    ) {
+        // Becoming the default dialer or SMS app changes what we are allowed to read.
+        invalidateCaches()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +58,9 @@ class MainActivity : ComponentActivity() {
                         requestScreeningRole = { requestRole(RoleManager.ROLE_CALL_SCREENING) },
                         requestDialerRole = { requestRole(RoleManager.ROLE_DIALER) },
                         requestSmsRole = ::requestSmsRole,
-                        requestPhonePermissions = ::requestCorePermissions,
+                        requestPhonePermissions = ::requestPhonePermissions,
+                        requestContactsPermission = ::requestContactsPermission,
+                        requestSmsPermission = ::requestSmsPermission,
                         shareText = ::shareText,
                     ),
                     startOnVault = openVaultOnStart,
@@ -80,24 +89,44 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Asks for the permissions the phone experience needs, in one contextual batch.
-     *
-     * Deliberately not every permission the app can use: SMS and contacts are requested by
-     * their own tabs, so a user who never opens Messages is never asked for SMS access.
+     * Permissions are requested in the three groups Setup presents them in, so each prompt
+     * arrives next to an explanation of why it is needed rather than as one long queue.
      */
-    private fun requestCorePermissions() {
+    private fun requestPhonePermissions() {
         val permissions = buildList {
             add(Manifest.permission.READ_PHONE_STATE)
             add(Manifest.permission.READ_CALL_LOG)
             add(Manifest.permission.CALL_PHONE)
-            add(Manifest.permission.READ_CONTACTS)
-            add(Manifest.permission.READ_SMS)
-            add(Manifest.permission.SEND_SMS)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        launchPermissions(permissions)
+    }
+
+    private fun requestContactsPermission() {
+        launchPermissions(listOf(Manifest.permission.READ_CONTACTS))
+    }
+
+    private fun requestSmsPermission() {
+        launchPermissions(
+            listOf(Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS),
+        )
+    }
+
+    private fun launchPermissions(permissions: List<String>) {
         runCatching { permissionLauncher.launch(permissions.toTypedArray()) }
+    }
+
+    /** Drops every cached provider read after a permission or role change. */
+    private fun invalidateCaches() {
+        runCatching {
+            val container = (application as DualShieldApplication).container
+            container.simResolver.invalidate()
+            container.contactsRepository.invalidateCache()
+            container.callLogRepository.invalidateCache()
+            container.smsRepository.invalidateThreadCache()
+        }
     }
 
     private fun requestRole(role: String) {

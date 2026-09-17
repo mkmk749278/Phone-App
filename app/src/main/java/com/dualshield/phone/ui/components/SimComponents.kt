@@ -1,5 +1,6 @@
 package com.dualshield.phone.ui.components
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,11 +27,13 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
 
 /** A SIM as the UI needs it: a slot, the user's label, and whether it is physically present. */
+@Immutable
 data class SimOption(
     val slotIndex: Int,
     val label: String,
     val present: Boolean,
     val protectionEnabled: Boolean,
+    val allowContacts: Boolean = true,
 ) {
     val display: String get() = "SIM ${slotIndex + 1} · $label"
 }

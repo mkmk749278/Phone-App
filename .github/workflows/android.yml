@@ -83,10 +83,16 @@ jobs:
           retention-days: 14
 
   # ---------------------------------------------------------------------------
-  # Debug APK, built on every branch and PR so there is always something to install.
+  # Installable builds for every branch and PR.
+  #
+  # The `preview` variant is the one testers should install. It is a full release
+  # build — R8-shrunk, not debuggable, baseline profile installed — signed with the
+  # debug key so it can go straight onto a phone without any secrets. A debug APK
+  # is 12x larger and runs Compose in a debuggable process, which is not a fair
+  # test of how the app actually performs.
   # ---------------------------------------------------------------------------
-  debug-apk:
-    name: Debug APK
+  test-builds:
+    name: Preview and debug APKs
     runs-on: ubuntu-latest
     needs: verify
     timeout-minutes: 45
@@ -104,8 +110,33 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Assemble debug
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Assemble preview and debug
+        run: ./gradlew assemblePreview assembleDebug --stacktrace
+
+      - name: Report APK sizes
+        run: |
+          {
+            echo "### Installable builds"
+            echo
+            echo "| Build | Size | Install this one? |"
+            echo "|---|---|---|"
+            for apk in app/build/outputs/apk/preview/*.apk; do
+              size=$(du -h "$apk" | cut -f1)
+              echo "| preview (optimised) | $size | **Yes** — this is what the app really performs like |"
+            done
+            for apk in app/build/outputs/apk/debug/*.apk; do
+              size=$(du -h "$apk" | cut -f1)
+              echo "| debug | $size | Only for attaching a debugger |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DualShieldPhone-preview-INSTALL-THIS
+          path: app/build/outputs/apk/preview/*.apk
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -113,7 +144,7 @@ jobs:
           name: DualShieldPhone-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
   # ---------------------------------------------------------------------------
   # Signed release build.

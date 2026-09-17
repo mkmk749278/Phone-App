@@ -40,6 +40,8 @@ data class SystemActions(
     val requestDialerRole: () -> Unit,
     val requestSmsRole: () -> Unit,
     val requestPhonePermissions: () -> Unit,
+    val requestContactsPermission: () -> Unit,
+    val requestSmsPermission: () -> Unit,
     val shareText: (String) -> Unit,
 )
 
@@ -97,6 +99,7 @@ fun DualShieldApp(
     }
 
     // One snackbar channel for the whole app, fed by whichever ViewModel has something to say.
+    // A tab the user cannot reach should not hold a stale snackbar.
     LaunchedEffect(phoneState.message) {
         phoneState.message?.let {
             snackbarHostState.showSnackbar(it)

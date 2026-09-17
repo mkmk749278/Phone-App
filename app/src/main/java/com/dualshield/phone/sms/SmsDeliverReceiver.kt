@@ -5,13 +5,18 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 import android.util.Log
+import com.dualshield.phone.DualShieldApplication
 
 /**
  * Receives SMS while DualShieldPhone is the default SMS app.
  *
- * Being the default SMS app makes us responsible for persisting the message, so that is
- * exactly what this does and nothing more. Message filtering is a Phase 3 feature and,
- * when it arrives, it will record what it hid without ever deleting the underlying SMS.
+ * Being the default SMS app makes us responsible for persisting the message, so that is the
+ * first thing this does. Shield then decides whether the message deserves the user's
+ * attention.
+ *
+ * A filtered message is still written to the system inbox — marked read so it raises no
+ * notification — and recorded in the Vault. Shield hides messages; it never destroys them,
+ * so a false positive costs the user a trip to the Vault rather than a lost message.
  */
 class SmsDeliverReceiver : BroadcastReceiver() {
 
@@ -27,16 +32,25 @@ class SmsDeliverReceiver : BroadcastReceiver() {
         val address = messages.first().displayOriginatingAddress?.trim().orEmpty()
         val body = messages.joinToString(separator = "") { it.displayMessageBody.orEmpty() }
         val timestamp = messages.first().timestampMillis
-
         if (address.isEmpty()) return
 
-        val repository = com.dualshield.phone.DualShieldApplication
-            .containerOrNull(context)?.smsRepository
-        if (repository == null) {
+        val container = DualShieldApplication.containerOrNull(context)
+        if (container == null) {
             Log.w(TAG, "No container available; dropping SMS persistence for this message.")
             return
         }
-        repository.persistIncoming(address, body, timestamp, subscriptionId)
+
+        val filtered = runCatching {
+            container.shieldEngine.screenMessage(address, body, timestamp, subscriptionId)
+        }.getOrDefault(false)
+
+        container.smsRepository.persistIncoming(
+            address = address,
+            body = body,
+            timestamp = timestamp,
+            subscriptionId = subscriptionId,
+            markRead = filtered,
+        )
     }
 
     private companion object {

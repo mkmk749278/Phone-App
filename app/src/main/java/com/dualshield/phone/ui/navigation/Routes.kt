@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 object Routes {
     const val ONBOARDING = "onboarding"
+    const val SETUP = "setup?first={first}"
 
     const val PHONE = "phone"
     const val DIALPAD = "phone/dialpad"
@@ -29,9 +30,11 @@ object Routes {
 
     const val SHIELD = "shield"
     const val SHIELD_SIM = "shield/sim/{slot}"
-    const val SHIELD_RULE_NEW = "shield/rule/new?scope={scope}"
+    const val SHIELD_RULE_NEW = "shield/rule/new?scope={scope}&type={type}&pattern={pattern}"
     const val SHIELD_RULE = "shield/rule/{ruleId}"
     const val SHIELD_TEST = "shield/test"
+    const val BLOCKED_NUMBERS = "shield/blocked"
+    const val INDIA_PROTECTION = "shield/india"
     const val VAULT = "shield/vault"
     const val VAULT_DETAIL = "shield/vault/{id}"
     const val ALLOWLIST = "shield/allowlist?slot={slot}"
@@ -47,7 +50,10 @@ object Routes {
 
     fun shieldSim(slot: Int): String = "shield/sim/$slot"
 
-    fun newRule(scope: String): String = "shield/rule/new?scope=$scope"
+    fun setup(first: Boolean): String = "setup?first=$first"
+
+    fun newRule(scope: String, type: String, pattern: String): String =
+        "shield/rule/new?scope=$scope&type=$type&pattern=${Uri.encode(pattern)}"
 
     fun rule(ruleId: Long): String = "shield/rule/$ruleId"
 

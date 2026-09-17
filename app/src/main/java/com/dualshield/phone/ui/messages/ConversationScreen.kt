@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -116,8 +117,12 @@ fun ConversationScreen(
                         .padding(horizontal = 17.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
-                    items(count = conversation.messages.size) { index ->
-                        MessageBubble(conversation.messages[index])
+                    items(
+                        items = conversation.messages,
+                        key = { it.id },
+                        contentType = { "bubble" },
+                    ) { message ->
+                        MessageBubble(message)
                     }
                 }
             }

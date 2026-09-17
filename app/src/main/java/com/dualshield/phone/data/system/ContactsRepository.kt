@@ -1,5 +1,6 @@
 package com.dualshield.phone.data.system
 
+import androidx.compose.runtime.Immutable
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** A device contact, as shown in the Contacts tab. */
+@Immutable
 data class Contact(
     val id: Long,
     val lookupKey: String?,
@@ -27,11 +29,37 @@ data class Contact(
  */
 class ContactsRepository(private val context: Context) {
 
+    private val contactsCache = SystemDataCache<List<Contact>>()
+    private val nameIndexCache = SystemDataCache<Map<String, String>>()
+
+    /**
+     * The last loaded contacts, available without suspending.
+     *
+     * Screens seed their first frame from this so a tab switch paints immediately instead of
+     * flashing an empty state while the provider query runs.
+     */
+    val cachedContacts: List<Contact> get() = contactsCache.value.orEmpty()
+
+    val isContactCacheFresh: Boolean get() = contactsCache.isFresh
+
+    /** Call after anything that could change the address book. */
+    fun invalidateCache() {
+        contactsCache.invalidate()
+        nameIndexCache.invalidate()
+    }
+
     fun hasPermission(): Boolean =
         context.checkSelfPermission(Manifest.permission.READ_CONTACTS) ==
             PackageManager.PERMISSION_GRANTED
 
-    suspend fun loadContacts(): List<Contact> = withContext(Dispatchers.IO) {
+    suspend fun loadContacts(force: Boolean = false): List<Contact> =
+        contactsCache.getOrLoad(force) { queryContacts() }
+
+    /** The number -> name map, built once per contacts load rather than per caller. */
+    suspend fun cachedNameIndex(): Map<String, String> =
+        nameIndexCache.getOrLoad { nameIndex(loadContacts()) }
+
+    private suspend fun queryContacts(): List<Contact> = withContext(Dispatchers.IO) {
         if (!hasPermission()) return@withContext emptyList()
 
         val projection = arrayOf(
@@ -107,6 +135,30 @@ class ContactsRepository(private val context: Context) {
             }
         }.getOrNull()
     }
+
+    /**
+     * Builds a number -> name index from an already-loaded contact list.
+     *
+     * The Messages list previously called [displayNameFor] once per conversation, which is
+     * one content-provider round trip per row. One pass over the contacts already in memory
+     * replaces all of them.
+     *
+     * Keyed on the last 10 digits so "+91 98765 43210" and "09876543210" both hit.
+     */
+    fun nameIndex(contacts: List<Contact>): Map<String, String> {
+        val index = HashMap<String, String>(contacts.size * 2)
+        for (contact in contacts) {
+            for (number in contact.phoneNumbers) {
+                val key = matchKey(number)
+                if (key.isNotEmpty()) index.putIfAbsent(key, contact.displayName)
+            }
+        }
+        return index
+    }
+
+    /** The comparison key used by [nameIndex]; also handy for matching a single number. */
+    fun matchKey(number: String?): String =
+        number?.filter { it.isDigit() }?.takeLast(10).orEmpty()
 
     /** T9-ish local search over name and number. Substring, not fuzzy — predictable wins. */
     fun search(contacts: List<Contact>, query: String): List<Contact> {

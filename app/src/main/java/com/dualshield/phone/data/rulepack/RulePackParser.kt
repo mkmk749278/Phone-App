@@ -135,6 +135,8 @@ object RulePackParser {
         provenance = enumOrNull<Provenance>(provenance) ?: Provenance.COMMUNITY,
         description = description,
         builtIn = true,
+        blocksCalls = blocksCalls,
+        blocksSms = blocksSms,
         packId = packId,
         createdAt = now,
         updatedAt = now,

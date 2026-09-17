@@ -31,6 +31,15 @@ class SimResolver(private val context: Context) {
     private val subscriptionManager: SubscriptionManager?
         get() = context.getSystemService(SubscriptionManager::class.java)
 
+    @Volatile
+    private var cachedSims: List<SimInfo> = emptyList()
+
+    @Volatile
+    private var cachedAtElapsedMs: Long = 0L
+
+    /** Resolved slot per phone-account handle. Handles are stable for the life of a SIM. */
+    private val slotByHandle = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     fun hasPhoneStatePermission(): Boolean =
         context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) ==
             PackageManager.PERMISSION_GRANTED
@@ -46,6 +55,27 @@ class SimResolver(private val context: Context) {
     @Suppress("DEPRECATION")
     @SuppressLint("MissingPermission")
     fun activeSims(): List<SimInfo> {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val cached = cachedSims
+        if (cached.isNotEmpty() && now - cachedAtElapsedMs < CACHE_TTL_MS) return cached
+        return loadActiveSims().also {
+            if (it.isNotEmpty()) {
+                cachedSims = it
+                cachedAtElapsedMs = now
+            }
+        }
+    }
+
+    /** Drops the cache after a SIM swap or a freshly granted permission. */
+    fun invalidate() {
+        cachedSims = emptyList()
+        cachedAtElapsedMs = 0L
+        slotByHandle.clear()
+    }
+
+    @Suppress("DEPRECATION")
+    @SuppressLint("MissingPermission")
+    private fun loadActiveSims(): List<SimInfo> {
         if (!hasPhoneStatePermission()) return emptyList()
         val subscriptions = runCatching {
             subscriptionManager?.activeSubscriptionInfoList
@@ -85,6 +115,14 @@ class SimResolver(private val context: Context) {
     fun resolveSlotIndex(handle: PhoneAccountHandle?): Int? {
         if (handle == null) return null
         if (!hasPhoneStatePermission()) return null
+
+        val cacheKey = handle.id
+        slotByHandle[cacheKey]?.let { return it }
+        return resolveSlotIndexUncached(handle)?.also { slotByHandle[cacheKey] = it }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun resolveSlotIndexUncached(handle: PhoneAccountHandle): Int? {
 
         val subscriptions = runCatching {
             subscriptionManager?.activeSubscriptionInfoList
@@ -148,5 +186,11 @@ class SimResolver(private val context: Context) {
 
     private companion object {
         const val TAG = "SimResolver"
+
+        /**
+         * Long enough that a burst of UI updates costs one telephony round trip, short
+         * enough that pulling a SIM out is noticed within a few seconds.
+         */
+        const val CACHE_TTL_MS = 30_000L
     }
 }

@@ -39,6 +39,12 @@ data class CallRuleEntity(
     val provenance: Provenance,
     val description: String,
     val builtIn: Boolean,
+    /**
+     * What the rule acts on. A rule that blocks neither is inert, and the editor will not
+     * let you save one.
+     */
+    val blocksCalls: Boolean = true,
+    val blocksSms: Boolean = false,
     val packId: String? = null,
     val matchCount: Int = 0,
     val createdAt: Long,

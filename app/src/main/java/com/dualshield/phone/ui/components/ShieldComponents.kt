@@ -155,6 +155,7 @@ fun ProtectionRuleRow(
     confidence: Confidence? = null,
     provenance: Provenance? = null,
     onClick: (() -> Unit)? = null,
+    onToggleAction: (() -> Unit)? = null,
 ) {
     val shieldColors = LocalShieldColors.current
     Row(
@@ -191,7 +192,19 @@ fun ProtectionRuleRow(
             action == RuleAction.ALLOW -> shieldColors.protectedContainer to shieldColors.protected
             else -> shieldColors.blockedContainer to shieldColors.blocked
         }
-        StatusPill(text = stateText, containerColor = container, contentColor = content)
+        StatusPill(
+            text = stateText,
+            containerColor = container,
+            contentColor = content,
+            onClick = onToggleAction,
+            clickLabel = onToggleAction?.let {
+                if (action == RuleAction.ALLOW) {
+                    "$name is allowed. Tap to block instead."
+                } else {
+                    "$name is blocked. Tap to allow instead."
+                }
+            },
+        )
         if (onClick != null) {
             Icon(
                 imageVector = Icons.Filled.ChevronRight,

@@ -15,6 +15,13 @@ data class SimProfileEntity(
     @PrimaryKey val slotIndex: Int,
     val label: String,
     val filteringEnabled: Boolean,
+    /**
+     * Saved contacts bypass every block rule on this SIM.
+     *
+     * On by default. A broad prefix rule is far more likely to catch someone the user knows
+     * than to be worth the false positive.
+     */
+    val allowContacts: Boolean = true,
     val subscriptionId: Int = -1,
     val carrierName: String = "",
     val lastSeenAt: Long = 0L,

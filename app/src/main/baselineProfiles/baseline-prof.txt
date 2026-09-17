@@ -1,0 +1,48 @@
+# Baseline profile for DualShieldPhone.
+#
+# These rules tell ART to compile the listed classes and methods ahead of time when the app
+# is installed, instead of interpreting them until the JIT warms up. That matters most for
+# the first launch and the first scroll, which is exactly where the app felt slowest.
+#
+# Prefix meanings: H = hot, S = startup, P = post-startup, L = a class reference.
+#
+# This is a hand-written profile covering the app's own startup and list-scrolling paths. A
+# profile generated from a real device run with the androidx.baselineprofile plugin would be
+# more precise; this is the portion that can be written correctly without one, and it is
+# additive — an imprecise rule costs a little install-time compilation, never correctness.
+
+# --- Process startup: Application, container wiring, the warm rule snapshot.
+HSPLcom/dualshield/phone/DualShieldApplication;-><init>()V
+HSPLcom/dualshield/phone/DualShieldApplication;->onCreate()V
+HSPLcom/dualshield/phone/AppContainer;-><init>(Landroid/content/Context;Lkotlinx/coroutines/CoroutineScope;)V
+HSPLcom/dualshield/phone/AppContainer;->**(**)**
+HSPLcom/dualshield/phone/ui/MainActivity;-><init>()V
+HSPLcom/dualshield/phone/ui/MainActivity;->onCreate(Landroid/os/Bundle;)V
+
+# --- The call firewall. Cold-started by Telecom, so it is never warm when it matters most.
+HSPLcom/dualshield/phone/telecom/ShieldCallScreeningService;->**(**)**
+HSPLcom/dualshield/phone/shield/ShieldEngine;->**(**)**
+HSPLcom/dualshield/phone/core/rules/RuleEngine;->**(**)**
+HSPLcom/dualshield/phone/core/rules/RuleIndex;->**(**)**
+HSPLcom/dualshield/phone/core/rules/RuleSnapshot;->**(**)**
+HSPLcom/dualshield/phone/core/rules/CompiledRule;->**(**)**
+HSPLcom/dualshield/phone/core/number/PhoneNumberNormalizer;->**(**)**
+HSPLcom/dualshield/phone/core/sim/SimResolver;->**(**)**
+Lcom/dualshield/phone/core/rules/ShieldDecision$Allow;
+Lcom/dualshield/phone/core/rules/ShieldDecision$Block;
+Lcom/dualshield/phone/core/model/PhoneNumberInfo;
+
+# --- Everything drawn on the first screen and while scrolling a list.
+HSPLcom/dualshield/phone/ui/components/**->**(**)**
+HSPLcom/dualshield/phone/ui/theme/**->**(**)**
+HSPLcom/dualshield/phone/ui/phone/PhoneScreenKt;->**(**)**
+HSPLcom/dualshield/phone/ui/DualShieldAppKt;->**(**)**
+HSPLcom/dualshield/phone/ui/navigation/**->**(**)**
+
+# --- ViewModels and the repositories behind the first frame.
+HSPLcom/dualshield/phone/ui/phone/PhoneViewModel;->**(**)**
+HSPLcom/dualshield/phone/data/system/SystemDataCache;->**(**)**
+HSPLcom/dualshield/phone/data/system/ContactsRepository;->**(**)**
+HSPLcom/dualshield/phone/data/system/CallLogRepository;->**(**)**
+HSPLcom/dualshield/phone/data/repository/RuleRepository;->**(**)**
+HSPLcom/dualshield/phone/data/repository/SimRepository;->**(**)**

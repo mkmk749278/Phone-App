@@ -21,10 +21,9 @@ import com.dualshield.phone.ui.components.ContactAvatar
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.EmptyState
 import com.dualshield.phone.ui.components.Formatting
-import com.dualshield.phone.ui.components.RowDivider
-import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.groupedItems
 
 /**
  * The allowlist.
@@ -79,35 +78,23 @@ fun AllowlistScreen(
                     )
                 }
             } else {
-                item {
-                    SectionCard {
-                        entries.forEachIndexed { index, entry ->
-                            val scopeText = when (entry.simScope) {
-                                SimScope.BOTH -> "Both SIMs"
-                                SimScope.SIM1 ->
-                                    sims.firstOrNull { it.slotIndex == 0 }?.display ?: "SIM 1"
-                                SimScope.SIM2 ->
-                                    sims.firstOrNull { it.slotIndex == 1 }?.display ?: "SIM 2"
-                            }
-                            AppListRow(
-                                title = entry.displayName?.takeIf { it.isNotBlank() }
-                                    ?: Formatting.displayNumber(entry.normalizedNumber),
-                                subtitle = scopeText,
-                                leading = {
-                                    ContactAvatar(entry.displayName, entry.normalizedNumber)
-                                },
-                                trailing = {
-                                    IconButton(onClick = { onRemove(entry.id) }) {
-                                        Icon(
-                                            Icons.Filled.Close,
-                                            contentDescription = "Remove from allowlist",
-                                        )
-                                    }
-                                },
-                            )
-                            if (index != entries.lastIndex) RowDivider()
-                        }
+                groupedItems(items = entries, key = { it.id }) { entry ->
+                    val scopeText = when (entry.simScope) {
+                        SimScope.BOTH -> "Both SIMs"
+                        SimScope.SIM1 -> sims.firstOrNull { it.slotIndex == 0 }?.display ?: "SIM 1"
+                        SimScope.SIM2 -> sims.firstOrNull { it.slotIndex == 1 }?.display ?: "SIM 2"
                     }
+                    AppListRow(
+                        title = entry.displayName?.takeIf { it.isNotBlank() }
+                            ?: Formatting.displayNumber(entry.normalizedNumber),
+                        subtitle = scopeText,
+                        leading = { ContactAvatar(entry.displayName, entry.normalizedNumber) },
+                        trailing = {
+                            IconButton(onClick = { onRemove(entry.id) }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Remove from allowlist")
+                            }
+                        },
+                    )
                 }
             }
 

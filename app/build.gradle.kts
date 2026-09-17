@@ -58,6 +58,23 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
+
+        /**
+         * A release build in everything but signing, installable straight from CI.
+         *
+         * A debug APK is not a fair test of how this app feels: it is unshrunk, it runs with
+         * `debuggable=true`, and Compose is dramatically slower under a debuggable process.
+         * This variant is what testers should install when no release keystore is configured.
+         */
+        create("preview") {
+            initWith(getByName("release"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -142,6 +159,10 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.datastore.preferences)
+
+    // Installs the bundled baseline profile so the startup path is AOT-compiled on first
+    // run rather than interpreted until ART gets round to JIT-ing it.
+    implementation(libs.androidx.profileinstaller)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

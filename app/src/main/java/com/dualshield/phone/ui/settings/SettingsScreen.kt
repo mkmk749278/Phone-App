@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -33,14 +34,12 @@ fun SettingsScreen(
     state: SettingsViewModel.UiState,
     versionName: String,
     onBack: () -> Unit,
+    onOpenSetup: () -> Unit,
     onSimLabelChange: (Int, String) -> Unit,
     onNotifyChange: (Boolean) -> Unit,
     onOpenVault: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenRulePacks: () -> Unit,
-    onRequestDialerRole: () -> Unit,
-    onRequestScreeningRole: () -> Unit,
-    onRequestSmsRole: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -55,9 +54,22 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { SectionHeading("SIM profiles") }
-            items(count = state.sims.size, key = { state.sims[it].slotIndex }) { index ->
-                val sim = state.sims[index]
+            item(key = "setup") {
+                SectionCard {
+                    AppListRow(
+                        title = "Setup",
+                        subtitle = if (state.readyToProtect) {
+                            "Shield can screen calls"
+                        } else {
+                            "Shield cannot block calls yet — finish setup"
+                        },
+                        onClick = onOpenSetup,
+                    )
+                }
+            }
+
+            item(key = "sims-heading") { SectionHeading("SIM profiles") }
+            items(items = state.sims, key = { it.slotIndex }) { sim ->
                 SimLabelEditor(
                     slotIndex = sim.slotIndex,
                     label = sim.label,
@@ -67,43 +79,8 @@ fun SettingsScreen(
                 )
             }
 
-            item { SectionHeading("Phone roles") }
-            item {
-                SectionCard {
-                    AppListRow(
-                        title = "Call screening",
-                        subtitle = if (state.roles.isCallScreener) {
-                            "Granted · Shield can block calls"
-                        } else {
-                            "Not granted · Shield cannot block calls yet"
-                        },
-                        onClick = onRequestScreeningRole,
-                    )
-                    RowDivider()
-                    AppListRow(
-                        title = "Default phone app",
-                        subtitle = if (state.roles.isDefaultDialer) {
-                            "Granted"
-                        } else {
-                            "Not granted · calls open in the system dialer"
-                        },
-                        onClick = onRequestDialerRole,
-                    )
-                    RowDivider()
-                    AppListRow(
-                        title = "Default SMS app",
-                        subtitle = if (state.roles.isDefaultSmsApp) {
-                            "Granted"
-                        } else {
-                            "Not granted · messages are read-only"
-                        },
-                        onClick = onRequestSmsRole,
-                    )
-                }
-            }
-
-            item { SectionHeading("Shield") }
-            item {
+            item(key = "shield-heading") { SectionHeading("Shield") }
+            item(key = "shield-card") {
                 SectionCard {
                     Row(
                         modifier = Modifier
@@ -143,8 +120,8 @@ fun SettingsScreen(
                 }
             }
 
-            item { SectionHeading("About") }
-            item {
+            item(key = "about-heading") { SectionHeading("About") }
+            item(key = "about-card") {
                 SectionCard {
                     AppListRow(
                         title = "Privacy",
@@ -159,7 +136,7 @@ fun SettingsScreen(
                 }
             }
 
-            item { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(24.dp) }
         }
     }
 }

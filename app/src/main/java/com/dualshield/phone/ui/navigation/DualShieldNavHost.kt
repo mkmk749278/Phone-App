@@ -18,6 +18,7 @@ import com.dualshield.phone.ui.messages.ConversationScreen
 import com.dualshield.phone.ui.messages.MessagesScreen
 import com.dualshield.phone.ui.messages.MessagesViewModel
 import com.dualshield.phone.ui.onboarding.OnboardingScreen
+import com.dualshield.phone.ui.onboarding.SetupScreen
 import com.dualshield.phone.ui.phone.CallDetailsScreen
 import com.dualshield.phone.ui.phone.DialpadScreen
 import com.dualshield.phone.ui.phone.PhoneScreen
@@ -26,7 +27,10 @@ import com.dualshield.phone.ui.settings.PrivacyScreen
 import com.dualshield.phone.ui.settings.RulePacksScreen
 import com.dualshield.phone.ui.settings.SettingsScreen
 import com.dualshield.phone.ui.settings.SettingsViewModel
+import com.dualshield.phone.ui.shield.AddRuleKind
 import com.dualshield.phone.ui.shield.AllowlistScreen
+import com.dualshield.phone.ui.shield.BlockedNumbersScreen
+import com.dualshield.phone.ui.shield.IndiaProtectionScreen
 import com.dualshield.phone.ui.shield.RuleEditorScreen
 import com.dualshield.phone.ui.shield.RuleTesterScreen
 import com.dualshield.phone.ui.shield.ShieldScreen
@@ -35,6 +39,7 @@ import com.dualshield.phone.ui.shield.SimRulesScreen
 import com.dualshield.phone.ui.shield.VaultDetailScreen
 import com.dualshield.phone.ui.shield.VaultScreen
 import com.dualshield.phone.ui.shield.VaultViewModel
+import com.dualshield.phone.ui.shield.patternType
 
 /** Wires every route to its screen. Screens stay free of navigation logic. */
 @Composable
@@ -53,12 +58,58 @@ fun DualShieldNavHost(
     NavHost(navController = navController, startDestination = startDestination) {
 
         composable(Routes.ONBOARDING) {
-            val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
             OnboardingScreen(
-                sims = settingsState.sims,
-                onRequestScreeningRole = actions.requestScreeningRole,
+                onContinue = { navController.navigate(Routes.setup(first = true)) },
+                onSkip = {
+                    settingsViewModel.setOnboardingComplete()
+                    navController.navigate(Routes.PHONE) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.SETUP,
+            arguments = listOf(
+                navArgument("first") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+            ),
+        ) { entry ->
+            val first = entry.arguments?.getBoolean("first") ?: false
+            val state by settingsViewModel.state.collectAsStateWithLifecycle()
+
+            // Roles and permissions can change while we are backgrounded in system settings.
+            LaunchedEffect(Unit) { settingsViewModel.refreshRoles() }
+
+            SetupScreen(
+                sims = state.sims,
+                roles = state.roles,
+                hasPhonePermissions = state.permissions.phone,
+                hasContactsPermission = state.permissions.contacts,
+                hasSmsPermission = state.permissions.sms,
+                showDoneButton = first,
+                onSimLabelChange = settingsViewModel::setSimLabel,
+                onToggleProtection = settingsViewModel::setProtectionEnabled,
                 onRequestPhonePermissions = actions.requestPhonePermissions,
-                onFinish = {
+                onRequestContactsPermission = actions.requestContactsPermission,
+                onRequestSmsPermission = actions.requestSmsPermission,
+                onRequestScreeningRole = actions.requestScreeningRole,
+                onRequestDialerRole = actions.requestDialerRole,
+                onRequestSmsRole = actions.requestSmsRole,
+                onBack = {
+                    if (first) {
+                        settingsViewModel.setOnboardingComplete()
+                        navController.navigate(Routes.PHONE) {
+                            popUpTo(Routes.ONBOARDING) { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
+                onDone = {
                     settingsViewModel.setOnboardingComplete()
                     navController.navigate(Routes.PHONE) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
@@ -71,9 +122,11 @@ fun DualShieldNavHost(
 
         composable(Routes.PHONE) {
             val state by phoneViewModel.state.collectAsStateWithLifecycle()
-            LaunchedEffect(Unit) { phoneViewModel.refresh() }
+            val recents by phoneViewModel.filteredRecents.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { phoneViewModel.refreshIfStale() }
             PhoneScreen(
                 state = state,
+                recents = recents,
                 onQueryChange = phoneViewModel::onQueryChange,
                 onOpenDialpad = { navController.navigate(Routes.DIALPAD) },
                 onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
@@ -82,9 +135,10 @@ fun DualShieldNavHost(
 
         composable(Routes.DIALPAD) {
             val state by phoneViewModel.state.collectAsStateWithLifecycle()
+            val suggestions by phoneViewModel.dialSuggestions.collectAsStateWithLifecycle()
             DialpadScreen(
                 state = state,
-                suggestions = phoneViewModel.dialSuggestions(),
+                suggestions = suggestions,
                 onDigit = phoneViewModel::onDigit,
                 onZeroLongPress = phoneViewModel::onZeroLongPress,
                 onBackspace = phoneViewModel::onBackspace,
@@ -102,21 +156,22 @@ fun DualShieldNavHost(
         ) { entry ->
             val number = entry.arguments?.getString("number").orEmpty()
             val state by phoneViewModel.state.collectAsStateWithLifecycle()
-            val contact = phoneViewModel.contactFor(number)
+            val details by phoneViewModel.callDetails.collectAsStateWithLifecycle()
+            LaunchedEffect(number) { phoneViewModel.openDetails(number) }
             CallDetailsScreen(
                 number = number,
-                displayName = contact?.displayName,
-                history = phoneViewModel.historyFor(number),
+                displayName = details.contact?.displayName,
+                history = details.history,
                 sims = state.sims,
                 defaultSlot = state.selectedSlot,
                 onBack = { navController.popBackStack() },
                 onCall = phoneViewModel::call,
                 onMessage = { navController.navigate(Routes.conversation(-1L, it)) },
                 onBlock = { scope ->
-                    phoneViewModel.blockNumber(number, contact?.displayName, scope)
+                    phoneViewModel.blockNumber(number, details.contact?.displayName, scope)
                 },
                 onAllow = { scope ->
-                    phoneViewModel.allowNumber(number, contact?.displayName, scope)
+                    phoneViewModel.allowNumber(number, details.contact?.displayName, scope)
                 },
             )
         }
@@ -125,9 +180,11 @@ fun DualShieldNavHost(
 
         composable(Routes.MESSAGES) {
             val state by messagesViewModel.state.collectAsStateWithLifecycle()
-            LaunchedEffect(Unit) { messagesViewModel.refresh() }
+            val threads by messagesViewModel.filteredThreads.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { messagesViewModel.refreshIfStale() }
             MessagesScreen(
                 state = state,
+                threads = threads,
                 onQueryChange = messagesViewModel::onQueryChange,
                 onOpenThread = { threadId, address ->
                     navController.navigate(Routes.conversation(threadId, address))
@@ -147,11 +204,9 @@ fun DualShieldNavHost(
                 },
             ),
         ) { entry ->
-            val threadId = entry.arguments?.getLong("threadId") ?: -1L
-            val address = entry.arguments?.getString("address").orEmpty()
             ConversationRoute(
-                threadId = threadId,
-                address = address,
+                threadId = entry.arguments?.getLong("threadId") ?: -1L,
+                address = entry.arguments?.getString("address").orEmpty(),
                 messagesViewModel = messagesViewModel,
                 onBack = { navController.popBackStack() },
             )
@@ -170,10 +225,11 @@ fun DualShieldNavHost(
 
         composable(Routes.CONTACTS) {
             val state by contactsViewModel.state.collectAsStateWithLifecycle()
-            LaunchedEffect(Unit) { contactsViewModel.refresh() }
+            val contacts by contactsViewModel.visibleContacts.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { contactsViewModel.refreshIfStale() }
             ContactsScreen(
                 state = state,
-                contacts = contactsViewModel.visibleContacts(),
+                contacts = contacts,
                 onQueryChange = contactsViewModel::onQueryChange,
                 onOpenContact = { navController.navigate(Routes.callDetails(it)) },
             )
@@ -187,9 +243,48 @@ fun DualShieldNavHost(
                 state = state,
                 onToggleSim = shieldViewModel::setProtectionEnabled,
                 onOpenSim = { navController.navigate(Routes.shieldSim(it)) },
+                onOpenBlockedNumbers = { navController.navigate(Routes.BLOCKED_NUMBERS) },
+                onOpenAllowlist = { navController.navigate(Routes.allowlist(null)) },
+                onOpenIndiaProtection = { navController.navigate(Routes.INDIA_PROTECTION) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenTester = { navController.navigate(Routes.SHIELD_TEST) },
-                onOpenAllowlist = { navController.navigate(Routes.allowlist(null)) },
+            )
+        }
+
+        composable(Routes.BLOCKED_NUMBERS) {
+            val state by shieldViewModel.state.collectAsStateWithLifecycle()
+            BlockedNumbersScreen(
+                rules = state.userRules,
+                sims = state.sims,
+                onBack = { navController.popBackStack() },
+                onOpenRule = { navController.navigate(Routes.rule(it)) },
+                onToggleAction = shieldViewModel::toggleRuleAction,
+                onAdd = { kind ->
+                    val scope = state.sims.firstOrNull { it.protectionEnabled }
+                        ?.let { SimScope.forSlot(it.slotIndex) }
+                        ?: SimScope.SIM2
+                    if (kind == AddRuleKind.CONTACT) {
+                        navController.navigate(Routes.CONTACTS)
+                    } else {
+                        navController.navigate(
+                            Routes.newRule(scope.name, kind.patternType().name, ""),
+                        )
+                    }
+                },
+            )
+        }
+
+        composable(Routes.INDIA_PROTECTION) {
+            val state by shieldViewModel.state.collectAsStateWithLifecycle()
+            val slot by shieldViewModel.indiaSlot.collectAsStateWithLifecycle()
+            IndiaProtectionScreen(
+                rules = state.rules.filter { it.builtIn },
+                sims = state.sims,
+                selectedSlot = slot,
+                onSelectSlot = shieldViewModel::onIndiaSlot,
+                onToggleRule = shieldViewModel::setRuleEnabled,
+                onOpenRule = { navController.navigate(Routes.rule(it)) },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -204,13 +299,18 @@ fun DualShieldNavHost(
                 state = state,
                 onBack = { navController.popBackStack() },
                 onToggleProtection = { shieldViewModel.setProtectionEnabled(slot, it) },
+                onToggleAllowContacts = { shieldViewModel.setAllowContacts(slot, it) },
                 onToggleRule = shieldViewModel::setRuleEnabled,
+                onToggleRuleAction = shieldViewModel::toggleRuleAction,
                 onOpenRule = { navController.navigate(Routes.rule(it)) },
                 onAddRule = {
                     val scope = SimScope.forSlot(slot) ?: SimScope.SIM2
-                    navController.navigate(Routes.newRule(scope.name))
+                    navController.navigate(
+                        Routes.newRule(scope.name, PatternType.EXACT.name, ""),
+                    )
                 },
                 onOpenAllowlist = { navController.navigate(Routes.allowlist(slot)) },
+                onOpenIndiaProtection = { navController.navigate(Routes.INDIA_PROTECTION) },
             )
         }
 
@@ -221,12 +321,26 @@ fun DualShieldNavHost(
                     type = NavType.StringType
                     defaultValue = SimScope.SIM2.name
                 },
+                navArgument("type") {
+                    type = NavType.StringType
+                    defaultValue = PatternType.EXACT.name
+                },
+                navArgument("pattern") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
             ),
         ) { entry ->
             val scopeName = entry.arguments?.getString("scope") ?: SimScope.SIM2.name
-            val scope = SimScope.entries.firstOrNull { it.name == scopeName } ?: SimScope.SIM2
-            LaunchedEffect(scopeName) {
-                shieldViewModel.startNewRule(scope, PatternType.EXACT)
+            val typeName = entry.arguments?.getString("type") ?: PatternType.EXACT.name
+            val pattern = entry.arguments?.getString("pattern").orEmpty()
+            LaunchedEffect(scopeName, typeName, pattern) {
+                shieldViewModel.startNewRule(
+                    scope = SimScope.entries.firstOrNull { it.name == scopeName } ?: SimScope.SIM2,
+                    patternType = PatternType.entries.firstOrNull { it.name == typeName }
+                        ?: PatternType.EXACT,
+                    pattern = pattern,
+                )
             }
             RuleEditorRoute(shieldViewModel) { navController.popBackStack() }
         }
@@ -269,7 +383,7 @@ fun DualShieldNavHost(
         ) { entry ->
             val id = entry.arguments?.getLong("id") ?: 0L
             val state by vaultViewModel.state.collectAsStateWithLifecycle()
-            val record = vaultViewModel.record(id)
+            val record = state.blockedCalls.firstOrNull { it.id == id }
             VaultDetailScreen(
                 record = record,
                 sims = state.sims,
@@ -312,14 +426,12 @@ fun DualShieldNavHost(
                 state = state,
                 versionName = versionName,
                 onBack = { navController.popBackStack() },
+                onOpenSetup = { navController.navigate(Routes.setup(first = false)) },
                 onSimLabelChange = settingsViewModel::setSimLabel,
                 onNotifyChange = settingsViewModel::setNotifyOnBlockedCall,
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
                 onOpenRulePacks = { navController.navigate(Routes.RULE_PACKS) },
-                onRequestDialerRole = actions.requestDialerRole,
-                onRequestScreeningRole = actions.requestScreeningRole,
-                onRequestSmsRole = actions.requestSmsRole,
             )
         }
 
@@ -351,9 +463,7 @@ private fun ConversationRoute(
     val state by messagesViewModel.state.collectAsStateWithLifecycle()
     val conversation by messagesViewModel.conversation.collectAsStateWithLifecycle()
 
-    LaunchedEffect(threadId, address) {
-        messagesViewModel.openThread(threadId, address)
-    }
+    LaunchedEffect(threadId, address) { messagesViewModel.openThread(threadId, address) }
 
     ConversationScreen(
         conversation = conversation,
@@ -386,6 +496,8 @@ private fun RuleEditorRoute(
         onAction = shieldViewModel::onDraftAction,
         onDescription = shieldViewModel::onDraftDescription,
         onEnabled = shieldViewModel::onDraftEnabled,
+        onBlocksCalls = shieldViewModel::onDraftBlocksCalls,
+        onBlocksSms = shieldViewModel::onDraftBlocksSms,
         onTestNumber = shieldViewModel::onDraftTestNumber,
         onTest = shieldViewModel::testDraft,
         onSave = shieldViewModel::saveDraft,

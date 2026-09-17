@@ -6,6 +6,7 @@ enum class AllowReason(val explanation: String) {
     SLOT_OUT_OF_RANGE("Call arrived on a SIM slot with no profile, so it was allowed"),
     FILTERING_DISABLED("Protection is off for this SIM"),
     EMERGENCY("Emergency and safety numbers are never blocked"),
+    CONTACT("Saved contacts always get through"),
     ALLOWLIST("Number is on this SIM's allowlist"),
     ALLOW_RULE("Matched an allow rule"),
     NO_MATCH("No blocking rule matched"),

@@ -1,5 +1,7 @@
 package com.dualshield.phone.data
 
+import com.dualshield.phone.core.model.Confidence
+import com.dualshield.phone.core.model.PatternType
 import com.dualshield.phone.core.model.Provenance
 import com.dualshield.phone.core.model.RuleAction
 import com.dualshield.phone.core.model.SimScope
@@ -73,6 +75,61 @@ class BundledIndiaPackTest {
             assertEquals("$id must allow", RuleAction.ALLOW, rule.action)
             assertEquals("$id should cover both SIMs", SimScope.BOTH, rule.simScope)
             assertTrue("$id must be enabled", rule.enabled)
+        }
+    }
+
+    @Test
+    fun `the regulated series carry an official provenance and the heuristics do not`() {
+        val regulated = pack.rules.filter { it.stableId.startsWith("india-") }
+        assertTrue("Expected regulated series rules", regulated.isNotEmpty())
+        regulated.forEach {
+            assertTrue(
+                "${'$'}{it.stableId} should be marked official",
+                it.provenance == Provenance.OFFICIAL ||
+                    it.provenance == Provenance.OFFICIAL_OR_ESTABLISHED,
+            )
+        }
+        // And nothing community-sourced may claim to be official.
+        pack.rules.filter { it.provenance == Provenance.COMMUNITY }.forEach {
+            assertEquals(
+                "${'$'}{it.stableId} must be low confidence",
+                Confidence.LOW,
+                it.confidence,
+            )
+        }
+    }
+
+    @Test
+    fun `every city heuristic is a contains rule so a dropped trunk zero still matches`() {
+        // 080-6912-3456 reaches a mobile as 8069123456, so these must not be anchored.
+        pack.rules
+            .filter { it.stableId.startsWith("heuristic-city-") }
+            .also { assertTrue("Expected city heuristics", it.isNotEmpty()) }
+            .forEach {
+                assertEquals(
+                    "${'$'}{it.stableId} must be a CONTAINS rule",
+                    PatternType.CONTAINS,
+                    it.patternType,
+                )
+            }
+    }
+
+    @Test
+    fun `no rule blocks an emergency number`() {
+        val compiled = pack.rules.mapNotNull { it.compile() }
+        val snapshot = RuleSnapshot(
+            perSlot = mapOf(
+                1 to RuleSnapshot.buildSimRuleSet(1, "Personal", true, emptySet(), compiled),
+            ),
+        )
+        // Deliberately evaluated with every pack rule enabled, including the heuristics.
+        PhoneNumberNormalizer.EMERGENCY_NUMBERS.forEach { number ->
+            val decision = RuleEngine.evaluate(
+                snapshot,
+                PhoneNumberNormalizer.normalize(number),
+                1,
+            )
+            assertTrue("$number must never be blocked", decision is ShieldDecision.Allow)
         }
     }
 

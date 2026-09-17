@@ -1,5 +1,6 @@
 package com.dualshield.phone.ui.settings
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
@@ -18,14 +19,26 @@ import kotlinx.coroutines.launch
 /** Settings, SIM profiles, rule packs and the privacy page. */
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
+    /** Which runtime permissions are currently held. Re-read whenever Setup is shown. */
+    data class Permissions(
+        val phone: Boolean = false,
+        val contacts: Boolean = false,
+        val sms: Boolean = false,
+    )
+
+    @Immutable
     data class UiState(
         val settings: AppSettings = AppSettings(),
         val sims: List<SimOption> = emptyList(),
         val packs: List<RulePackMetadataEntity> = emptyList(),
         val roles: RoleStatus = RoleStatus(false, false, false),
+        val permissions: Permissions = Permissions(),
         val exportedJson: String? = null,
         val message: String? = null,
-    )
+    ) {
+        /** Setup is only genuinely finished once Shield can actually screen a call. */
+        val readyToProtect: Boolean get() = roles.isCallScreener && permissions.phone
+    }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -47,8 +60,29 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         refreshRoles()
     }
 
+    /**
+     * Re-reads roles and permissions.
+     *
+     * Called every time Setup or Settings is shown, because the user can change any of this
+     * in system settings while the app is in the background and we would otherwise keep
+     * showing a stale "not granted".
+     */
     fun refreshRoles() {
-        _state.update { it.copy(roles = container.roleRepository.status()) }
+        container.simResolver.invalidate()
+        _state.update {
+            it.copy(
+                roles = container.roleRepository.status(),
+                permissions = Permissions(
+                    phone = container.simResolver.hasPhoneStatePermission(),
+                    contacts = container.contactsRepository.hasPermission(),
+                    sms = container.smsRepository.hasReadPermission(),
+                ),
+            )
+        }
+    }
+
+    fun setProtectionEnabled(slotIndex: Int, enabled: Boolean) {
+        viewModelScope.launch { container.simRepository.setFilteringEnabled(slotIndex, enabled) }
     }
 
     fun setNotifyOnBlockedCall(enabled: Boolean) {

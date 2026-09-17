@@ -29,6 +29,8 @@ data class CompiledRule(
     val priority: Int,
     val builtIn: Boolean,
     val description: String,
+    val blocksCalls: Boolean = true,
+    val blocksSms: Boolean = false,
     val regex: Regex? = null,
     val special: SpecialRule? = null,
 ) {
@@ -60,6 +62,8 @@ data class CompiledRule(
             priority: Int,
             builtIn: Boolean,
             description: String,
+            blocksCalls: Boolean = true,
+            blocksSms: Boolean = false,
         ): CompiledRule? {
             val normalizedPattern = when (patternType) {
                 PatternType.EXACT, PatternType.PREFIX, PatternType.CONTAINS ->
@@ -90,6 +94,8 @@ data class CompiledRule(
                 priority = priority,
                 builtIn = builtIn,
                 description = description,
+                blocksCalls = blocksCalls,
+                blocksSms = blocksSms,
                 regex = regex,
                 special = special,
             )

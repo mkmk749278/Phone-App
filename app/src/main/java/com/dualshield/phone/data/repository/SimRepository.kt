@@ -75,6 +75,9 @@ class SimRepository(
     suspend fun setFilteringEnabled(slotIndex: Int, enabled: Boolean) =
         dao.setFilteringEnabled(slotIndex, enabled)
 
+    suspend fun setAllowContacts(slotIndex: Int, allow: Boolean) =
+        dao.setAllowContacts(slotIndex, allow)
+
     suspend fun setLabel(slotIndex: Int, label: String) =
         dao.setLabel(slotIndex, label.trim().ifBlank { defaultLabelForSlot(slotIndex) })
 

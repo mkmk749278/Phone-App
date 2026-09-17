@@ -1,5 +1,6 @@
 package com.dualshield.phone.ui.shield
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dualshield.phone.AppContainer
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 /** Everything under the Shield tab: overview, per-SIM rules, the editor and the tester. */
 class ShieldViewModel(private val container: AppContainer) : ViewModel() {
 
+    @Immutable
     data class UiState(
         val sims: List<SimOption> = emptyList(),
         val rules: List<CallRuleEntity> = emptyList(),
@@ -46,6 +48,17 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
 
         fun allowRulesForSlot(slotIndex: Int): List<AllowRuleEntity> =
             allowRules.filter { it.simScope.coversSlot(slotIndex) }
+
+        /**
+         * What the Blocked numbers screen lists: the user's own entries, newest first.
+         *
+         * Built-in pack rules are deliberately excluded — they belong under India protection
+         * where their provenance and confidence are shown alongside them.
+         */
+        val userRules: List<CallRuleEntity>
+            get() = rules.filterNot { it.builtIn }.sortedByDescending { it.createdAt }
+
+        val blockedCount: Int get() = userRules.count { it.action == RuleAction.BLOCK }
     }
 
     /** An in-progress rule. Kept separate from the entity so a bad draft never reaches Room. */
@@ -60,6 +73,8 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
         val description: String = "",
         val enabled: Boolean = true,
         val builtIn: Boolean = false,
+        val blocksCalls: Boolean = true,
+        val blocksSms: Boolean = true,
         val patternError: String? = null,
         val testNumber: String = "",
         val testOutcome: TestOutcome? = null,
@@ -84,6 +99,19 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
     private val _tester = MutableStateFlow(TesterState())
     val tester: StateFlow<TesterState> = _tester.asStateFlow()
 
+    /**
+     * Which SIM the India protection screen is showing.
+     *
+     * Its own state rather than the rule tester's: sharing one slot between two unrelated
+     * screens meant testing a number silently changed which SIM's rules you were looking at.
+     */
+    private val _indiaSlot = MutableStateFlow<Int?>(null)
+    val indiaSlot: StateFlow<Int?> = _indiaSlot.asStateFlow()
+
+    fun onIndiaSlot(slotIndex: Int) {
+        _indiaSlot.value = slotIndex
+    }
+
     data class TesterState(
         val number: String = "",
         val slotIndex: Int? = null,
@@ -101,8 +129,13 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                     _state.update {
                         it.copy(sims = sims, rules = rules, allowRules = allows)
                     }
+                    val firstSlot = sims.firstOrNull()?.slotIndex
                     if (_tester.value.slotIndex == null) {
-                        _tester.update { it.copy(slotIndex = sims.firstOrNull()?.slotIndex) }
+                        _tester.update { it.copy(slotIndex = firstSlot) }
+                    }
+                    if (_indiaSlot.value == null) {
+                        _indiaSlot.value = sims.firstOrNull { it.protectionEnabled }?.slotIndex
+                            ?: firstSlot
                     }
                 }
         }
@@ -138,6 +171,71 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setSimLabel(slotIndex: Int, label: String) {
         viewModelScope.launch { container.simRepository.setLabel(slotIndex, label) }
+    }
+
+    /**
+     * Flips a rule between blocking and allowing, in place.
+     *
+     * The BLOCK/ALLOW pill used to be decoration — there was no way to change a rule's
+     * action short of deleting it and starting again.
+     */
+    fun toggleRuleAction(rule: CallRuleEntity) {
+        viewModelScope.launch {
+            val next = if (rule.action == RuleAction.BLOCK) RuleAction.ALLOW else RuleAction.BLOCK
+            container.ruleRepository.updateRule(
+                rule.copy(
+                    action = next,
+                    category = if (next == RuleAction.ALLOW) {
+                        RuleCategory.USER_ALLOW
+                    } else {
+                        RuleCategory.USER_BLOCK
+                    },
+                    updatedAt = System.currentTimeMillis(),
+                ),
+            )
+            _state.update {
+                it.copy(
+                    message = if (next == RuleAction.BLOCK) {
+                        "${RuleDisplay.pattern(rule)} is now blocked"
+                    } else {
+                        "${RuleDisplay.pattern(rule)} is now always allowed"
+                    },
+                )
+            }
+        }
+    }
+
+    /** Cycles a rule between blocking calls, SMS, or both — MIUI's three-way choice. */
+    fun cycleRuleChannels(rule: CallRuleEntity) {
+        viewModelScope.launch {
+            val (calls, sms) = when {
+                rule.blocksCalls && rule.blocksSms -> true to false
+                rule.blocksCalls -> false to true
+                else -> true to true
+            }
+            container.ruleRepository.updateRule(
+                rule.copy(
+                    blocksCalls = calls,
+                    blocksSms = sms,
+                    updatedAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+    }
+
+    fun setAllowContacts(slotIndex: Int, allow: Boolean) {
+        viewModelScope.launch {
+            container.simRepository.setAllowContacts(slotIndex, allow)
+            _state.update {
+                it.copy(
+                    message = if (allow) {
+                        "Saved contacts will always get through"
+                    } else {
+                        "Contacts are no longer automatically allowed"
+                    },
+                )
+            }
+        }
     }
 
     fun setRuleEnabled(ruleId: Long, enabled: Boolean) {
@@ -192,8 +290,18 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
 
     // ------------------------------------------------------------------ rule editor
 
-    fun startNewRule(scope: SimScope, patternType: PatternType = PatternType.EXACT) {
-        _draft.value = RuleDraft(patternType = patternType, scope = scope)
+    fun startNewRule(
+        scope: SimScope,
+        patternType: PatternType = PatternType.EXACT,
+        pattern: String = "",
+        name: String = "",
+    ) {
+        _draft.value = RuleDraft(
+            patternType = patternType,
+            scope = scope,
+            pattern = pattern,
+            name = name,
+        )
     }
 
     fun loadRule(ruleId: Long) {
@@ -211,6 +319,8 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                 description = rule.description,
                 enabled = rule.enabled,
                 builtIn = rule.builtIn,
+                blocksCalls = rule.blocksCalls,
+                blocksSms = rule.blocksSms,
             )
         }
     }
@@ -242,6 +352,10 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
     fun onDraftDescription(value: String) = _draft.update { it.copy(description = value) }
 
     fun onDraftEnabled(value: Boolean) = _draft.update { it.copy(enabled = value) }
+
+    fun onDraftBlocksCalls(value: Boolean) = _draft.update { it.copy(blocksCalls = value) }
+
+    fun onDraftBlocksSms(value: Boolean) = _draft.update { it.copy(blocksSms = value) }
 
     fun onDraftTestNumber(value: String) = _draft.update {
         it.copy(testNumber = value, testOutcome = null)
@@ -301,6 +415,12 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
             _draft.update { it.copy(patternError = patternError) }
             return
         }
+        if (current.action == RuleAction.BLOCK && !current.blocksCalls && !current.blocksSms) {
+            _draft.update {
+                it.copy(patternError = "Choose whether this blocks calls, messages, or both.")
+            }
+            return
+        }
 
         viewModelScope.launch {
             val now = System.currentTimeMillis()
@@ -315,6 +435,8 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                         simScope = current.scope,
                         enabled = current.enabled,
                         description = current.description.trim(),
+                        blocksCalls = current.blocksCalls,
+                        blocksSms = current.blocksSms,
                         updatedAt = now,
                     ),
                 )
@@ -335,6 +457,8 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                         provenance = Provenance.USER_DEFINED,
                         description = current.description.trim(),
                         builtIn = false,
+                        blocksCalls = current.blocksCalls,
+                        blocksSms = current.blocksSms,
                         createdAt = now,
                         updatedAt = now,
                     ),

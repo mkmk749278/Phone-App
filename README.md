@@ -136,6 +136,42 @@ Two deliberate choices here:
 There is no blanket short-code block: short codes carry legitimate operator and service
 traffic.
 
+### Call-centre ranges
+
+Indian outbound call centres dial from PRI ranges inside a city's STD code, and the trunk `0`
+is dropped on the way to a mobile — so a call from `080-6912-3456` arrives as `8069123456`.
+The pack ships `CONTAINS` rules for the ranges people report most (Bengaluru `8035`/`8069`,
+Hyderabad `4069`, Gurugram `1246`, Ahmedabad `7943`, and others), grouped by city.
+
+Every one of them is **off by default and labelled a community heuristic**, because no
+authoritative source publishes these — they are observations, and the same ranges carry
+ordinary businesses in those cities. `BundledIndiaPackTest` fails the build if any
+community-sourced rule ships enabled or omits that disclaimer.
+
+## Managing rules
+
+**Shield → Blocked numbers** is a flat list of everything you have blocked, shown as the
+pattern itself (`9876543210`, `140*`, `*8035*`) with what it does underneath. Add via a sheet
+offering **Add phone number**, **Add prefix** or **Add from contacts**.
+
+Each rule targets **calls, messages, or both**. Tapping the BLOCK/ALLOW pill flips a rule in
+place. Filtered messages are still written to the inbox and still readable — marked read so
+they raise no notification — and recorded in the Vault. Shield hides messages; it never
+deletes them.
+
+**Saved contacts get through by default**, on every SIM, whatever a rule says. It is the
+cheapest protection against a broad prefix rule swallowing someone you know, and it can be
+switched off per SIM.
+
+## Setup
+
+First run is a welcome page and then **Setup**, which is also reachable from Settings
+afterwards. It shows live grant status for each permission and role, so a denied prompt is
+visible and fixable instead of leaving the app quietly unable to block anything.
+
+Setup is also where you name each SIM and choose which to protect. The app no longer assumes
+"SIM 1 is the duty line" — that was one person's arrangement baked in as a default.
+
 ---
 
 ## Fresh-install defaults
@@ -160,12 +196,53 @@ to the JSON cannot quietly change what a fresh install does.
 
 ---
 
+## Performance and caching
+
+The app's job is to feel like the phone app, which means never making the user wait. Four
+things do most of the work:
+
+**Lists are real lazy items.** Every list screen emits rows through `groupedItems`, keyed and
+content-typed, so Compose composes a screenful and recycles as you scroll. (The first version
+put whole lists inside one `item { }` to get the card look, which composed every row before
+the first frame — a 500-contact phone built 500 rows up front.)
+
+**Nothing filters on the main thread.** Search, T9 matching and call-history lookups run as
+debounced background flows in the ViewModel, not as getters read during composition.
+
+**Provider reads are cached, stale-while-revalidate.** Contacts, the call log and the SMS
+thread list go through `SystemDataCache`, shared at the repository so it survives ViewModel
+recreation. A screen paints the last known data on its first frame and refreshes behind it,
+rather than showing an empty state and popping. The cache is process-lifetime only and is
+never written to disk — keeping a second copy of someone's contacts and call log to save a
+few hundred milliseconds is not a trade this app should make. Granting a permission or
+changing a role drops every cache immediately.
+
+**Telephony lookups are memoised.** `SimResolver` caches the active-SIM list for 30 seconds
+and memoises phone-account-to-slot resolution, so a burst of UI updates costs one binder
+round trip instead of dozens — and the call-screening path costs none.
+
+Alongside those: UI models are `@Immutable` so Compose can skip equal rows, a baseline
+profile ships in the APK so the startup and scrolling paths are AOT-compiled on install, and
+the rule snapshot is warmed at process start so the firewall never touches Room on the call
+path.
+
+## Installing a build to try
+
+Grab **`DualShieldPhone-preview-INSTALL-THIS`** from the CI run's artifacts.
+
+The `preview` build is a full release build — R8-shrunk, not debuggable, baseline profile
+installed — signed with the debug key so it installs without any secrets. It is about 5 MB.
+
+The debug APK is also uploaded, but it is ~60 MB, unshrunk, and runs Compose in a debuggable
+process. It is for attaching a debugger, not for judging how the app performs.
+
 ## Building
 
 Requirements: JDK 17, Android SDK with API 35.
 
 ```bash
-./gradlew assembleDebug              # debug APK
+./gradlew assemblePreview            # optimised, installable, debug-signed
+./gradlew assembleDebug              # debuggable
 ./gradlew testDebugUnitTest          # unit tests
 ./gradlew lintDebug                  # Android lint
 ./gradlew checkNoInternetPermission  # offline privacy gate
@@ -176,7 +253,7 @@ Requirements: JDK 17, Android SDK with API 35.
 |---|---|
 | Language | Kotlin 2.0 |
 | UI | Jetpack Compose + Material 3 (dynamic colour, light and dark) |
-| Storage | Room, schemas checked in under `app/schemas/` |
+| Storage | Room, schemas checked in under `app/schemas/`, migrations written by hand |
 | Min / target SDK | 29 / 35 |
 | DI | A hand-written container — background entry points need the same singletons as the UI, and a plain container gives that without annotation processing |
 
@@ -189,7 +266,7 @@ Requirements: JDK 17, Android SDK with API 35.
 | Job | Does |
 |---|---|
 | `verify` | Gradle wrapper validation, unit tests, Android lint, the offline privacy gate; uploads test and lint reports |
-| `debug-apk` | Builds and uploads the debug APK on every branch |
+| `test-builds` | Builds the installable `preview` APK and the debug APK on every branch |
 | `release-artifacts` | Signed release APK + AAB on the default branch, on `v*` tags and on manual dispatch; attaches them to the GitHub release for a tag |
 
 ### Signing secrets

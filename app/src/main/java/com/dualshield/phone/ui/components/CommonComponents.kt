@@ -170,9 +170,12 @@ fun AppListRow(
 }
 
 @Composable
-fun RowDivider(modifier: Modifier = Modifier) {
+fun RowDivider(
+    modifier: Modifier = Modifier,
+    insetStart: androidx.compose.ui.unit.Dp = 75.dp,
+) {
     HorizontalDivider(
-        modifier = modifier.padding(start = 75.dp),
+        modifier = modifier.padding(start = insetStart),
         color = MaterialTheme.colorScheme.outlineVariant,
     )
 }
@@ -290,24 +293,50 @@ fun SegmentedControl(
     }
 }
 
+/**
+ * A small state chip.
+ *
+ * When [onClick] is supplied the pill becomes a control and grows to the 48dp minimum touch
+ * target, so flipping a rule's action is a real tap target rather than a 20dp sliver.
+ */
 @Composable
 fun StatusPill(
     text: String,
     containerColor: Color,
     contentColor: Color,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    clickLabel: String? = null,
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(containerColor)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .heightIn(min = MinTouchTarget)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onClick)
+                        .padding(4.dp)
+                } else {
+                    Modifier
+                },
+            )
+            .then(if (onClick != null) Modifier else Modifier.clip(RoundedCornerShape(8.dp)))
+            .semantics { if (clickLabel != null) contentDescription = clickLabel },
+        contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = contentColor,
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(containerColor)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+            )
+        }
     }
 }
 
