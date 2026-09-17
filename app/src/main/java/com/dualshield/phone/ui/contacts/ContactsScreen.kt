@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -55,10 +54,6 @@ fun ContactsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
-            item(key = "title") {
-                Text("Contacts", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(Spacing.md)
-            }
             item(key = "search") {
                 SearchField(
                     value = state.query,

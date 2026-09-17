@@ -171,6 +171,7 @@ fun AppListRow(
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     contentDescription: String? = null,
+    subtitleMaxLines: Int = 1,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
@@ -203,7 +204,10 @@ fun AppListRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    // One line for a row whose subtitle is metadata, more where the
+                    // subtitle is the content — a message preview cut at one line tells
+                    // you a message arrived and nothing about what it says.
+                    maxLines = subtitleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

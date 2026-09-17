@@ -92,10 +92,6 @@ fun PhoneScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
-            item(key = "title") {
-                Text("Phone", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(Spacing.md)
-            }
             item(key = "search") {
                 SearchField(
                     value = state.query,

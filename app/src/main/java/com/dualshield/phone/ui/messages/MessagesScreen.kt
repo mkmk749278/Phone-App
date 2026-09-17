@@ -61,10 +61,6 @@ fun MessagesScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            item(key = "title") {
-                Text("Messages", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(Spacing.md)
-            }
             item(key = "search") {
                 SearchField(
                     value = state.query,
@@ -95,6 +91,7 @@ fun MessagesScreen(
                         title = thread.displayName?.takeIf { it.isNotBlank() }
                             ?: Formatting.displayNumber(thread.address),
                         subtitle = thread.snippet,
+                        subtitleMaxLines = 2,
                         leading = {
                             ContactAvatar(
                                 thread.displayName,
@@ -118,11 +115,11 @@ fun MessagesScreen(
                 VerticalSpacer(Spacing.md)
                 SectionCard {
                     AppListRow(
-                        title = "Blocked call logs",
+                        title = "Filtered messages",
                         subtitle = if (state.blockedMessageCount == 0) {
-                            "No messages filtered"
+                            "Nothing filtered"
                         } else {
-                            "${state.blockedMessageCount} filtered messages"
+                            "${state.blockedMessageCount} kept out of your inbox"
                         },
                         leading = {
                             Icon(
