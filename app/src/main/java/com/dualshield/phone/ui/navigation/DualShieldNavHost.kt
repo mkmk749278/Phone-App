@@ -338,6 +338,9 @@ fun DualShieldNavHost(
                 threadId = entry.arguments?.getLong("threadId") ?: -1L,
                 address = entry.arguments?.getString("address").orEmpty(),
                 messagesViewModel = messagesViewModel,
+                phoneViewModel = phoneViewModel,
+                onCall = { phoneViewModel.call(it) },
+                onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -347,6 +350,9 @@ fun DualShieldNavHost(
                 threadId = -1L,
                 address = "",
                 messagesViewModel = messagesViewModel,
+                phoneViewModel = phoneViewModel,
+                onCall = { phoneViewModel.call(it) },
+                onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -619,6 +625,9 @@ private fun ConversationRoute(
     threadId: Long,
     address: String,
     messagesViewModel: MessagesViewModel,
+    phoneViewModel: PhoneViewModel,
+    onCall: (String) -> Unit,
+    onOpenDetails: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val state by messagesViewModel.state.collectAsStateWithLifecycle()
@@ -634,6 +643,9 @@ private fun ConversationRoute(
         onDraftChange = messagesViewModel::onDraftChange,
         onRecipientChange = messagesViewModel::onRecipientChange,
         onSend = messagesViewModel::send,
+        onCall = onCall,
+        onOpenDetails = onOpenDetails,
+        onActionFailed = phoneViewModel::showMessage,
         onBack = onBack,
     )
 }

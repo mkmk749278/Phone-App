@@ -32,6 +32,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.data.system.SmsMessage
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.ui.platform.LocalContext
+import com.dualshield.phone.core.number.PhoneNumberFormatter
+import com.dualshield.phone.core.number.PhoneNumberNormalizer
+import com.dualshield.phone.ui.actions.ExternalActions
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.EmptyState
 import com.dualshield.phone.ui.components.Formatting
@@ -54,12 +61,20 @@ fun ConversationScreen(
     onDraftChange: (String) -> Unit,
     onRecipientChange: (String) -> Unit,
     onSend: () -> Unit,
+    onCall: (String) -> Unit,
+    onOpenDetails: (String) -> Unit,
+    onActionFailed: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val listState = rememberLazyListState()
     val selectedSim = sims.firstOrNull { it.slotIndex == selectedSlot }
     val isNew = conversation.threadId < 0
+
+    // A sender ID like AXISBK is a real sender but not a reachable line.
+    val isCallable = PhoneNumberFormatter.internationalDigits(conversation.address) != null ||
+        PhoneNumberNormalizer.normalize(conversation.address).hasDigits
 
     LaunchedEffect(conversation.messages.size) {
         if (conversation.messages.isNotEmpty()) {
@@ -76,6 +91,30 @@ fun ConversationScreen(
                     ?: if (isNew) "New message" else Formatting.displayNumber(conversation.address),
                 subtitle = selectedSim?.let { "SMS · ${it.display}" },
                 onBack = onBack,
+                actions = {
+                    // The same party, reachable the same ways from wherever you meet them.
+                    // Offered only for a number you could actually call: a bank's sender ID
+                    // has nothing to dial, and a call button that fails is worse than none.
+                    if (!isNew && isCallable) {
+                        IconButton(onClick = { onCall(conversation.address) }) {
+                            Icon(Icons.Filled.Call, contentDescription = "Call")
+                        }
+                        if (ExternalActions.canOpenWhatsApp(context, conversation.address)) {
+                            IconButton(
+                                onClick = {
+                                    if (!ExternalActions.openWhatsApp(context, conversation.address)) {
+                                        onActionFailed("WhatsApp couldn't be opened for this number.")
+                                    }
+                                },
+                            ) {
+                                Icon(Icons.Filled.Chat, contentDescription = "WhatsApp")
+                            }
+                        }
+                        IconButton(onClick = { onOpenDetails(conversation.address) }) {
+                            Icon(Icons.Filled.Info, contentDescription = "Details")
+                        }
+                    }
+                },
             )
         },
     ) { padding ->
