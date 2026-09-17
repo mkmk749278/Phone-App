@@ -45,6 +45,7 @@ fun SettingsScreen(
     onSimLabelChange: (Int, String) -> Unit,
     onNotifyChange: (Boolean) -> Unit,
     onOpenShield: () -> Unit,
+    onOpenCallRecording: () -> Unit,
     onOpenVault: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenRulePacks: () -> Unit,
@@ -85,6 +86,17 @@ fun SettingsScreen(
                     present = sim.present,
                     onLabelChange = { onSimLabelChange(sim.slotIndex, it) },
                 )
+            }
+
+            item(key = "calling-heading") { SectionHeading("Calling") }
+            item(key = "calling-card") {
+                SectionCard {
+                    AppListRow(
+                        title = "Call recording",
+                        subtitle = "What this device allows, and why",
+                        onClick = onOpenCallRecording,
+                    )
+                }
             }
 
             item(key = "shield-heading") { SectionHeading("Shield & blocking") }

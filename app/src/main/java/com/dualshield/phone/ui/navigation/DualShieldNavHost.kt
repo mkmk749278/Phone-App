@@ -42,6 +42,7 @@ import com.dualshield.phone.ui.phone.NumberActionSheet
 import com.dualshield.phone.ui.phone.NumberActionTarget
 import com.dualshield.phone.ui.phone.PhoneScreen
 import com.dualshield.phone.ui.phone.PhoneViewModel
+import com.dualshield.phone.ui.settings.CallRecordingScreen
 import com.dualshield.phone.ui.settings.PrivacyScreen
 import com.dualshield.phone.ui.settings.RulePacksScreen
 import com.dualshield.phone.ui.settings.SettingsScreen
@@ -337,6 +338,9 @@ fun DualShieldNavHost(
                 threadId = entry.arguments?.getLong("threadId") ?: -1L,
                 address = entry.arguments?.getString("address").orEmpty(),
                 messagesViewModel = messagesViewModel,
+                phoneViewModel = phoneViewModel,
+                onCall = { phoneViewModel.call(it) },
+                onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -346,6 +350,9 @@ fun DualShieldNavHost(
                 threadId = -1L,
                 address = "",
                 messagesViewModel = messagesViewModel,
+                phoneViewModel = phoneViewModel,
+                onCall = { phoneViewModel.call(it) },
+                onOpenDetails = { navController.navigate(Routes.callDetails(it)) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -578,9 +585,20 @@ fun DualShieldNavHost(
                 onSimLabelChange = settingsViewModel::setSimLabel,
                 onNotifyChange = settingsViewModel::setNotifyOnBlockedCall,
                 onOpenShield = { navController.navigate(Routes.SHIELD) },
+                onOpenCallRecording = { navController.navigate(Routes.CALL_RECORDING) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
                 onOpenRulePacks = { navController.navigate(Routes.RULE_PACKS) },
+            )
+        }
+
+        composable(Routes.CALL_RECORDING) {
+            val state by settingsViewModel.state.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { settingsViewModel.detectRecordingCapability() }
+            CallRecordingScreen(
+                capability = state.recordingCapability,
+                onRecheck = { settingsViewModel.detectRecordingCapability(force = true) },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -607,6 +625,9 @@ private fun ConversationRoute(
     threadId: Long,
     address: String,
     messagesViewModel: MessagesViewModel,
+    phoneViewModel: PhoneViewModel,
+    onCall: (String) -> Unit,
+    onOpenDetails: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val state by messagesViewModel.state.collectAsStateWithLifecycle()
@@ -622,6 +643,9 @@ private fun ConversationRoute(
         onDraftChange = messagesViewModel::onDraftChange,
         onRecipientChange = messagesViewModel::onRecipientChange,
         onSend = messagesViewModel::send,
+        onCall = onCall,
+        onOpenDetails = onOpenDetails,
+        onActionFailed = phoneViewModel::showMessage,
         onBack = onBack,
     )
 }

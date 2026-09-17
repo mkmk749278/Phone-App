@@ -44,6 +44,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val PRIVACY = "settings/privacy"
     const val RULE_PACKS = "settings/rulepacks"
+    const val CALL_RECORDING = "settings/recording"
 
     fun callDetails(number: String): String = "phone/details/${Uri.encode(number)}"
 
