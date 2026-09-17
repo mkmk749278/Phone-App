@@ -189,6 +189,33 @@ adb shell dumpsys package com.dualshield.phone.preview | grep -i -E "RECORD_AUDI
 
 - [ ] That command prints nothing.
 
+## 10b. Answering a call (§Swipe)
+
+The point of the gesture is what a pocket, a palm and a table cannot do, so test it the way
+those happen — not by carefully dragging with the phone in your hand.
+
+Screen unlocked, then repeat every line with the phone locked:
+
+- [ ] There is **no** one-tap Accept or Decline button while the phone is ringing.
+- [ ] Tapping the caller's name, the photo, the SIM label and the track itself does nothing.
+- [ ] Swipe right past the target → answered, once.
+- [ ] Swipe left past the target → rejected, once.
+- [ ] Drag a third of the way and let go → the handle returns, the phone keeps ringing.
+- [ ] Drag, then slide back to the middle before letting go → nothing happens.
+- [ ] Press and hold the handle without moving → nothing happens.
+- [ ] Two fingers, both dragging opposite ways → one outcome, not two.
+- [ ] Drag past the target and keep wiggling → the action fires once, not repeatedly.
+- [ ] Put the ringing phone in a trouser pocket and walk ten steps → still ringing when you
+      take it out, neither answered nor rejected. **This is the test that matters.**
+- [ ] Same, face down on a table with a hand brushed across it.
+- [ ] Answering from the lock screen does **not** require unlocking first.
+
+With TalkBack on:
+
+- [ ] The handle announces how to use it.
+- [ ] Its actions menu offers Answer and Reject, and each works.
+- [ ] Choosing one, then choosing the other immediately → the second does nothing.
+
 ## 11. Navigation and insets (§57, §58)
 
 Walk every path: Phone → Messages → Contacts → Phone, Phone → Dialer → Call details →
