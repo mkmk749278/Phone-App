@@ -94,11 +94,23 @@ object Formatting {
         return digits.take(3).ifEmpty { "?" }
     }
 
+    /**
+     * How a SIM is named on screen, everywhere in the app.
+     *
+     * The one rule, in one place. The app used to express it three times — here, on
+     * `SimOption`, and inline on the Shield card — which is how `SIM 2 · ` with nothing
+     * after the separator survived in some screens after being fixed in others. The app
+     * does not name a user's lines for them, so an unlabelled SIM is named by its slot and
+     * the separator goes with the label it was separating.
+     */
     fun simLabel(slotIndex: Int?, label: String?): String = when {
-        slotIndex == null -> label ?: "Unknown SIM"
-        label.isNullOrBlank() -> "SIM ${slotIndex + 1}"
-        else -> "SIM ${slotIndex + 1} · $label"
+        slotIndex == null -> label?.takeIf { it.isNotBlank() } ?: "Unknown SIM"
+        label.isNullOrBlank() -> slotName(slotIndex)
+        else -> "${slotName(slotIndex)} · $label"
     }
+
+    /** "SIM 1", "SIM 2" — the name a line has before the user gives it one. */
+    fun slotName(slotIndex: Int): String = "SIM ${slotIndex + 1}"
 
     private fun sameDay(a: Calendar, b: Calendar): Boolean =
         a.get(Calendar.YEAR) == b.get(Calendar.YEAR) &&

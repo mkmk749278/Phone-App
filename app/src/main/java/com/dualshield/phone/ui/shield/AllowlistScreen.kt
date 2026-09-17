@@ -23,6 +23,7 @@ import com.dualshield.phone.ui.components.EmptyState
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.displayForSlot
 import com.dualshield.phone.ui.components.groupedItems
 
 /**
@@ -74,15 +75,15 @@ fun AllowlistScreen(
                 item {
                     EmptyState(
                         title = "No allowed numbers",
-                        message = "Allow a number from a Vault record or a contact to add it here.",
+                        message = "Allow a number from a blocked call or a contact to add it here.",
                     )
                 }
             } else {
                 groupedItems(items = entries, key = { it.id }) { entry ->
                     val scopeText = when (entry.simScope) {
                         SimScope.BOTH -> "Both SIMs"
-                        SimScope.SIM1 -> sims.firstOrNull { it.slotIndex == 0 }?.display ?: "SIM 1"
-                        SimScope.SIM2 -> sims.firstOrNull { it.slotIndex == 1 }?.display ?: "SIM 2"
+                        SimScope.SIM1 -> sims.displayForSlot(0)
+                        SimScope.SIM2 -> sims.displayForSlot(1)
                     }
                     AppListRow(
                         title = entry.displayName?.takeIf { it.isNotBlank() }

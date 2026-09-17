@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.telecom.RoleStatus
 import com.dualshield.phone.ui.components.DetailHeader
+import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.SimSlotBadge
@@ -257,7 +258,10 @@ private fun SimSetupCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SimSlotBadge(slotIndex = sim.slotIndex)
                 Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text("SIM ${sim.slotIndex + 1}", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = Formatting.slotName(sim.slotIndex),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                     Text(
                         text = if (sim.present) "Detected" else "Not detected",
                         style = MaterialTheme.typography.bodySmall,

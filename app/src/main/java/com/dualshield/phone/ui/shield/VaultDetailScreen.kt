@@ -60,7 +60,7 @@ fun VaultDetailScreen(
         if (record == null) {
             EmptyState(
                 title = "Record not found",
-                message = "This Vault record is no longer available.",
+                message = "This blocked call is no longer in your history.",
                 modifier = Modifier.padding(padding),
             )
             return@Scaffold

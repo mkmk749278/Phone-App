@@ -28,6 +28,7 @@ import com.dualshield.phone.ui.components.ProtectionRuleRow
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.displayForSlot
 import com.dualshield.phone.ui.components.groupedItems
 
 /**
@@ -64,7 +65,7 @@ fun SimRulesScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DetailHeader(
-                title = sim?.display ?: "SIM ${slotIndex + 1}",
+                title = state.sims.displayForSlot(slotIndex),
                 subtitle = "Rules on this screen affect this SIM only",
                 onBack = onBack,
             )
@@ -128,7 +129,7 @@ fun SimRulesScreen(
                     )
                     RowDivider()
                     AppListRow(
-                        title = "India protection",
+                        title = "India blocklist",
                         subtitle = if (protectionOn) {
                             "${enabledBuiltIns.size} built-in rules active on this SIM"
                         } else {
@@ -159,7 +160,7 @@ fun SimRulesScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ProtectionRuleRow(
-                            name = RuleDisplay.pattern(rule),
+                            name = RuleDisplay.patternOrName(rule),
                             detail = RuleDisplay.subtitle(rule, state.sims),
                             action = rule.action,
                             enabled = rule.enabled,

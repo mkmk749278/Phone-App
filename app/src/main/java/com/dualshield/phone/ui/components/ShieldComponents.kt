@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.Confidence
 import com.dualshield.phone.core.model.Provenance
 import com.dualshield.phone.core.model.RuleAction
+import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.theme.LocalShieldColors
 
 /**
@@ -122,11 +123,11 @@ fun SimProtectionCard(
                 // is blank looks like a value that failed to load.
                 val named = label.isNotBlank()
                 Text(
-                    text = if (named) label else "SIM ${slotIndex + 1}",
+                    text = if (named) label else Formatting.slotName(slotIndex),
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
-                    text = if (named) "SIM ${slotIndex + 1} · $summary" else summary,
+                    text = if (named) "${Formatting.slotName(slotIndex)} · $summary" else summary,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -142,7 +143,7 @@ fun SimProtectionCard(
                 enabled = present,
                 modifier = Modifier.semantics {
                     contentDescription = buildString {
-                        append("Protection for SIM ${slotIndex + 1}")
+                        append("Protection for ${Formatting.slotName(slotIndex)}")
                         if (label.isNotBlank()) append(", $label")
                         append(if (protectionEnabled) ", on" else ", off")
                     }

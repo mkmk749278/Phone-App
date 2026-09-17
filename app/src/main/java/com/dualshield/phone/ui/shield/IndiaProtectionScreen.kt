@@ -80,7 +80,7 @@ fun IndiaProtectionScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DetailHeader(
-                title = "India protection",
+                title = "India blocklist",
                 subtitle = "Built-in rules for Indian numbering series",
                 onBack = onBack,
             )
@@ -188,9 +188,12 @@ private fun IndiaRuleRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            // The rule's name already carries its series — "1600 Transactional Service" —
+            // so the row needs no second line repeating the pattern. What it did carry was
+            // the raw expression, which said nothing to anyone who had not written it.
             Text(rule.name, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "${RuleDisplay.pattern(rule)} · ${RuleDisplay.action(rule)}",
+                text = RuleDisplay.status(rule),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

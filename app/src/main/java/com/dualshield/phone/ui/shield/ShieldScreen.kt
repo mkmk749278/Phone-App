@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
@@ -16,15 +19,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
 import com.dualshield.phone.core.shield.PauseDuration
 import com.dualshield.phone.core.shield.ShieldPause
@@ -36,6 +36,7 @@ import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.ShieldStatusCard
 import com.dualshield.phone.ui.components.SimProtectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.displayForSlot
 
 /**
  * Shield home.
@@ -164,7 +165,7 @@ fun ShieldScreen(
                     )
                     RowDivider()
                     AppListRow(
-                        title = "India protection",
+                        title = "India blocklist",
                         subtitle = "Promotional, transactional, toll-free and premium-rate series",
                         leading = {
                             Icon(
@@ -267,9 +268,9 @@ private fun pausedDetail(pause: ShieldPause, state: ShieldViewModel.UiState): St
     val where = when (pause.scope) {
         SimScope.BOTH -> "Calls and messages are not being blocked"
         SimScope.SIM1 ->
-            "${state.sim(0)?.display ?: "SIM 1"} is not being filtered"
+            "${state.sims.displayForSlot(0)} is not being filtered"
         SimScope.SIM2 ->
-            "${state.sim(1)?.display ?: "SIM 2"} is not being filtered"
+            "${state.sims.displayForSlot(1)} is not being filtered"
     }
     val until = pause.expiresAtMillis
         ?.let { " · resumes at ${Formatting.timeOfDay(it)}" }

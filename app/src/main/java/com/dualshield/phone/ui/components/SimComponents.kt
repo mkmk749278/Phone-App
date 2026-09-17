@@ -35,16 +35,19 @@ data class SimOption(
     val protectionEnabled: Boolean,
     val allowContacts: Boolean = true,
 ) {
-    /**
-     * What to call this line on screen.
-     *
-     * A fresh profile has no label at all — the app does not name the user's SIMs for them —
-     * so the separator has to go with it. "SIM 1 · " with nothing after it reads as a missing
-     * value rather than an unnamed line.
-     */
-    val display: String
-        get() = if (label.isBlank()) "SIM ${slotIndex + 1}" else "SIM ${slotIndex + 1} · $label"
+    /** What to call this line on screen. One rule, defined once, in [Formatting.simLabel]. */
+    val display: String get() = Formatting.simLabel(slotIndex, label)
 }
+
+/**
+ * The display name for a slot, whether or not a profile for it has loaded yet.
+ *
+ * Every screen that resolves a scope to a name needs this, and each one used to write its
+ * own `firstOrNull { ... }?.display ?: "SIM 1"`. Ten copies of a fallback is ten chances for
+ * one of them to say something slightly different from the rest.
+ */
+fun List<SimOption>.displayForSlot(slotIndex: Int): String =
+    firstOrNull { it.slotIndex == slotIndex }?.display ?: Formatting.slotName(slotIndex)
 
 /**
  * Horizontal SIM chips, used on the dialpad and above the message composer.

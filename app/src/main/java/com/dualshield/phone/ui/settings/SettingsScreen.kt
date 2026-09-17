@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.DetailHeader
+import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SectionHeading
@@ -178,7 +179,7 @@ private fun SimLabelEditor(
     var value by remember(label) { mutableStateOf(label) }
     SectionCard {
         Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
-            Text("SIM ${slotIndex + 1}", style = MaterialTheme.typography.titleMedium)
+            Text(Formatting.slotName(slotIndex), style = MaterialTheme.typography.titleMedium)
             Text(
                 text = buildString {
                     append(if (protectionEnabled) "Protection on" else "Protection off")

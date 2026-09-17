@@ -59,7 +59,7 @@ fun VaultScreen(
                 onBack = onBack,
                 actions = {
                     IconButton(onClick = { confirmClear = true }) {
-                        Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear Vault")
+                        Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear blocked call history")
                     }
                 },
             )
@@ -137,7 +137,7 @@ fun VaultScreen(
 
             item {
                 Text(
-                    text = "Clearing the Vault removes this history only. Your rules and " +
+                    text = "Clearing this removes the history only. Your rules and " +
                         "allowed numbers are not affected.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

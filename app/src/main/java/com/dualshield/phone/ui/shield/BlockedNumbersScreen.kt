@@ -89,7 +89,7 @@ fun BlockedNumbersScreen(
                 groupedItems(items = rules, key = { it.id }, dividerInset = 17.dp) { rule ->
                     val blocking = rule.action == RuleAction.BLOCK
                     AppListRow(
-                        title = RuleDisplay.pattern(rule),
+                        title = RuleDisplay.patternOrName(rule),
                         subtitle = RuleDisplay.subtitle(rule, sims),
                         trailing = {
                             StatusPill(
@@ -112,7 +112,7 @@ fun BlockedNumbersScreen(
                                 },
                             )
                         },
-                        contentDescription = "${RuleDisplay.pattern(rule)}, " +
+                        contentDescription = "${RuleDisplay.patternOrName(rule)}, " +
                             RuleDisplay.subtitle(rule, sims),
                         onClick = { onOpenRule(rule.id) },
                     )

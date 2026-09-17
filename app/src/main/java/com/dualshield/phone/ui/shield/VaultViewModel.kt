@@ -99,7 +99,7 @@ class VaultViewModel(private val container: AppContainer) : ViewModel() {
     fun clearVault() {
         viewModelScope.launch {
             container.vaultRepository.clearBlockedCalls()
-            _state.update { it.copy(selectedIds = emptySet(), message = "Vault cleared. Your rules are unchanged.") }
+            _state.update { it.copy(selectedIds = emptySet(), message = "Blocked call history cleared. Your rules are unchanged.") }
         }
     }
 
