@@ -136,8 +136,15 @@ fun DialpadScreen(
                                 key = { "${it.contact.id}:${it.number.matchKey}" },
                             ) { result ->
                                 AppListRow(
+                                    // Same trap as the Contacts list: a contact with no
+                                    // name is named after its number, and putting the
+                                    // number underneath prints the same digits twice.
                                     title = result.contact.displayName,
-                                    subtitle = result.number.display,
+                                    subtitle = if (result.contact.hasName) {
+                                        result.number.display
+                                    } else {
+                                        result.number.typeLabel.takeIf { it.isNotBlank() }
+                                    },
                                     leading = {
                                         ContactAvatar(
                                             result.contact.displayName,

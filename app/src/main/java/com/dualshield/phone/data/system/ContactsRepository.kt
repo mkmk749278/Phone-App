@@ -36,6 +36,15 @@ data class Contact(
     val phoneNumbers: List<ContactNumber>,
     val photoUri: String?,
     val starred: Boolean,
+    /**
+     * Whether [displayName] is a name the user actually gave this contact.
+     *
+     * A contact saved with no name falls back to showing its number as its name, which is
+     * the right thing for a list of people — but a screen that then prints the number
+     * underneath it too shows the same digits twice, one above the other, and reads as two
+     * duplicate entries rather than one unnamed contact.
+     */
+    val hasName: Boolean,
 ) {
     val primaryNumber: String? get() = phoneNumbers.firstOrNull()?.raw
 }
@@ -180,6 +189,7 @@ class ContactsRepository(private val context: Context) {
                             phoneNumbers = listOf(number),
                             photoUri = cursor.getString(photoIdx),
                             starred = cursor.getInt(starredIdx) == 1,
+                            hasName = !cursor.getString(nameIdx)?.trim().isNullOrEmpty(),
                         )
                     } else if (existing.phoneNumbers.none { it.sameNumberAs(number) }) {
                         // Same person, genuinely different line. A second *spelling* of a line
