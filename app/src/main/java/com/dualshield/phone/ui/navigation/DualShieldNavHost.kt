@@ -1,11 +1,25 @@
 package com.dualshield.phone.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
+import androidx.navigation.NavBackStackEntry
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -46,6 +60,29 @@ import com.dualshield.phone.ui.shield.VaultScreen
 import com.dualshield.phone.ui.shield.VaultViewModel
 import com.dualshield.phone.ui.shield.patternType
 
+/** How long a screen transition runs. Short enough to feel like a response, not an effect. */
+private const val TRANSITION_MS = 190
+
+/**
+ * How far a screen slides in, as a fraction of the width.
+ *
+ * A partial slide rather than a full one: the incoming screen is already opaque, so a short
+ * move reads as depth without the whole display sweeping sideways.
+ */
+private const val DEPTH_DIVISOR = 6
+
+private val TRANSITION_SPEC = tween<IntOffset>(durationMillis = TRANSITION_MS)
+private val FADE_SPEC = tween<Float>(durationMillis = TRANSITION_MS)
+
+/**
+ * True when this transition is between two of the bottom-navigation tabs.
+ *
+ * Tab switches are not navigation in depth, so they get no animation at all.
+ */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boolean =
+    isTopLevelRoute(initialState.destination.route) &&
+        isTopLevelRoute(targetState.destination.route)
+
 /** Wires every route to its screen. Screens stay free of navigation logic. */
 @Composable
 fun DualShieldNavHost(
@@ -60,7 +97,52 @@ fun DualShieldNavHost(
     actions: SystemActions,
     versionName: String,
 ) {
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        // An opaque background under the graph. Every screen carries its own Scaffold, and
+        // during a crossfade two of them were being blended together — which is exactly the
+        // "ghost screen" the recording showed. With a solid surface underneath, nothing
+        // shows through whatever is on top.
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        // Switching tabs is immediate: a tab bar is a place selector, and animating it makes
+        // the app feel slower than the tap. Everything else gets one controlled horizontal
+        // push, so forward and back read as depth rather than as a dissolve.
+        enterTransition = {
+            if (isTabSwitch()) {
+                EnterTransition.None
+            } else {
+                slideInHorizontally(TRANSITION_SPEC) { width -> width / DEPTH_DIVISOR } +
+                    fadeIn(FADE_SPEC)
+            }
+        },
+        exitTransition = {
+            if (isTabSwitch()) {
+                ExitTransition.None
+            } else {
+                slideOutHorizontally(TRANSITION_SPEC) { width -> -width / DEPTH_DIVISOR } +
+                    fadeOut(FADE_SPEC)
+            }
+        },
+        popEnterTransition = {
+            if (isTabSwitch()) {
+                EnterTransition.None
+            } else {
+                slideInHorizontally(TRANSITION_SPEC) { width -> -width / DEPTH_DIVISOR } +
+                    fadeIn(FADE_SPEC)
+            }
+        },
+        popExitTransition = {
+            if (isTabSwitch()) {
+                ExitTransition.None
+            } else {
+                slideOutHorizontally(TRANSITION_SPEC) { width -> width / DEPTH_DIVISOR } +
+                    fadeOut(FADE_SPEC)
+            }
+        },
+    ) {
 
         composable(Routes.ONBOARDING) {
             OnboardingScreen(
@@ -293,6 +375,7 @@ fun DualShieldNavHost(
                 onOpenIndiaProtection = { navController.navigate(Routes.INDIA_PROTECTION) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenTester = { navController.navigate(Routes.SHIELD_TEST) },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -474,6 +557,7 @@ fun DualShieldNavHost(
                 onOpenSetup = { navController.navigate(Routes.setup(first = false)) },
                 onSimLabelChange = settingsViewModel::setSimLabel,
                 onNotifyChange = settingsViewModel::setNotifyOnBlockedCall,
+                onOpenShield = { navController.navigate(Routes.SHIELD) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
                 onOpenRulePacks = { navController.navigate(Routes.RULE_PACKS) },

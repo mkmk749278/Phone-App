@@ -28,7 +28,13 @@ import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
 
-/** Settings. Short by design: SIM profiles, notifications, rule packs, privacy. */
+/**
+ * Settings. Short by design: SIM profiles, Shield, notifications, rule packs, privacy.
+ *
+ * Shield is reached from here rather than from the bottom bar. It is configuration, not a
+ * destination — and a phone app whose main navigation includes a security console is a
+ * security console with a phone attached.
+ */
 @Composable
 fun SettingsScreen(
     state: SettingsViewModel.UiState,
@@ -37,6 +43,7 @@ fun SettingsScreen(
     onOpenSetup: () -> Unit,
     onSimLabelChange: (Int, String) -> Unit,
     onNotifyChange: (Boolean) -> Unit,
+    onOpenShield: () -> Unit,
     onOpenVault: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenRulePacks: () -> Unit,
@@ -79,7 +86,7 @@ fun SettingsScreen(
                 )
             }
 
-            item(key = "shield-heading") { SectionHeading("Shield") }
+            item(key = "shield-heading") { SectionHeading("Shield & blocking") }
             item(key = "shield-card") {
                 SectionCard {
                     Row(
@@ -105,6 +112,12 @@ fun SettingsScreen(
                             onCheckedChange = onNotifyChange,
                         )
                     }
+                    RowDivider()
+                    AppListRow(
+                        title = "Shield",
+                        subtitle = "Protection, SIM rules, blocked numbers and allowlist",
+                        onClick = onOpenShield,
+                    )
                     RowDivider()
                     AppListRow(
                         title = "Shield Vault",
