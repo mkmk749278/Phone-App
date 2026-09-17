@@ -18,8 +18,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.shield.PauseDuration
+import com.dualshield.phone.core.shield.ShieldPause
 import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.DetailHeader
+import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.ShieldStatusCard
@@ -44,10 +54,13 @@ fun ShieldScreen(
     onOpenIndiaProtection: () -> Unit,
     onOpenVault: () -> Unit,
     onOpenTester: () -> Unit,
+    onPause: (PauseDuration, SimScope) -> Unit,
+    onResume: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val protectedSims = state.sims.filter { it.protectionEnabled }
+    var choosingPause by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -71,14 +84,44 @@ fun ShieldScreen(
             }
 
             item(key = "status") {
+                val pause = state.pause
                 ShieldStatusCard(
-                    headline = if (state.anyProtectionOn) "Shield active" else "Shield off",
+                    headline = when {
+                        pause != null -> "Shield paused"
+                        state.anyProtectionOn -> "Shield active"
+                        else -> "Shield off"
+                    },
                     detail = when {
+                        pause != null -> pausedDetail(pause, state)
                         protectedSims.isEmpty() -> "No SIM is being filtered"
                         protectedSims.size == 1 -> "${protectedSims.first().display} protected"
                         else -> "${protectedSims.size} SIMs protected"
                     },
                 )
+            }
+
+            // Pausing is a first-class action, not something buried in Advanced: opening a
+            // short call window is a thing this user does most weeks. The treatment stays
+            // quiet on purpose — a paused Shield should be obvious, not alarming.
+            item(key = "pause") {
+                SectionCard {
+                    if (state.isPaused) {
+                        AppListRow(
+                            title = "Resume Shield",
+                            subtitle = "Turn protection back on now",
+                            leading = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                            onClick = onResume,
+                        )
+                    } else {
+                        AppListRow(
+                            title = "Pause Shield",
+                            subtitle = "Take calls you would normally block, then let " +
+                                "protection come back on its own",
+                            leading = { Icon(Icons.Filled.Pause, contentDescription = null) },
+                            onClick = { choosingPause = true },
+                        )
+                    }
+                }
             }
 
             // The rules, front and centre.
@@ -183,4 +226,35 @@ fun ShieldScreen(
             item(key = "bottom-space") { VerticalSpacer(24.dp) }
         }
     }
+
+    if (choosingPause) {
+        PauseShieldDialog(
+            sims = state.sims,
+            onDismiss = { choosingPause = false },
+            onConfirm = { duration, scope ->
+                onPause(duration, scope)
+                choosingPause = false
+            },
+        )
+    }
+}
+
+/**
+ * What the status card says while a pause is in force.
+ *
+ * A timed pause names the time it ends, because the promise the feature makes is that the
+ * user does not have to remember to switch protection back on.
+ */
+private fun pausedDetail(pause: ShieldPause, state: ShieldViewModel.UiState): String {
+    val where = when (pause.scope) {
+        SimScope.BOTH -> "Calls and messages are not being blocked"
+        SimScope.SIM1 ->
+            "${state.sim(0)?.display ?: "SIM 1"} is not being filtered"
+        SimScope.SIM2 ->
+            "${state.sim(1)?.display ?: "SIM 2"} is not being filtered"
+    }
+    val until = pause.expiresAtMillis
+        ?.let { " · resumes at ${Formatting.timeOfDay(it)}" }
+        .orEmpty()
+    return where + until
 }

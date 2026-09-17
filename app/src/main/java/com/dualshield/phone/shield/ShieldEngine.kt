@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.dualshield.phone.core.number.PhoneNumberFormatter
+import com.dualshield.phone.core.shield.ShieldPause
+import com.dualshield.phone.data.repository.SettingsRepository
 import kotlinx.coroutines.launch
 
 /**
@@ -61,6 +63,7 @@ class ShieldEngine(
     private val simRepository: SimRepository,
     private val vaultRepository: VaultRepository,
     private val contactsRepository: ContactsRepository,
+    private val settingsRepository: SettingsRepository,
 ) {
 
     private val _snapshot = MutableStateFlow(RuleSnapshot.EMPTY)
@@ -80,12 +83,32 @@ class ShieldEngine(
     @Volatile
     private var contactKeys: Set<String> = emptySet()
 
+    /**
+     * The pause in force, or null — the single authoritative copy.
+     *
+     * Kept in memory because the screening path must be able to ask "is Shield paused for
+     * this line?" without touching storage. Whether it has *lapsed* is decided by comparing
+     * timestamps when the question is asked, not by a timer, so there is no window in which
+     * a call is screened against a pause that has already ended.
+     */
+    @Volatile
+    private var pause: ShieldPause? = null
+
+    /** The pause in force at this instant, or null. Safe to call from anywhere. */
+    fun activePause(now: Long = System.currentTimeMillis()): ShieldPause? =
+        pause?.takeIf { it.isActiveAt(now) }
+
     /** Starts keeping the snapshot and contact keys up to date. Called from Application. */
     fun start() {
         scope.launch {
             ruleRepository.observeSnapshot().collect { next ->
                 _snapshot.value = next
                 warm = true
+            }
+        }
+        scope.launch {
+            settingsRepository.settings.collect { settings ->
+                pause = settings.shieldPause
             }
         }
         refreshContactKeys()
@@ -123,6 +146,18 @@ class ShieldEngine(
         val simLabel = slotIndex?.let { snapshot.forSlot(it)?.label }?.takeIf { it.isNotBlank() }
             ?: slotIndex?.let { "SIM ${it + 1}" }
             ?: "Unknown SIM"
+
+        // The pause is checked before anything else. While it is in force for this line,
+        // Shield enforces nothing at all — no user rules, no India blocklist, no heuristics —
+        // which is the whole point of a call window.
+        if (isPausedFor(slotIndex)) {
+            return ScreeningOutcome(
+                decision = ShieldDecision.Allow(AllowReason.SHIELD_PAUSED),
+                info = info,
+                slotIndex = slotIndex,
+                simLabel = simLabel,
+            )
+        }
 
         val decision = RuleEngine.evaluate(
             snapshot = snapshot,
@@ -200,6 +235,7 @@ class ShieldEngine(
             simRepository.slotForSubscriptionId(subscriptionId)
         }.getOrNull()
         val snapshot = currentSnapshot()
+        if (isPausedFor(slotIndex)) return false
 
         val decision = RuleEngine.evaluate(
             snapshot = snapshot,
@@ -252,6 +288,17 @@ class ShieldEngine(
             isContact = isSavedContact(info),
         )
     }
+
+    /**
+     * Whether Shield is paused for this line right now.
+     *
+     * A single read of the volatile field, then two comparisons. Nothing here can block, and
+     * a fault resolves to "not paused", which leaves protection on rather than silently off.
+     */
+    private fun isPausedFor(slotIndex: Int?): Boolean =
+        runCatching {
+            pause?.suspends(slotIndex, System.currentTimeMillis()) == true
+        }.getOrDefault(false)
 
     /**
      * Whether this caller is in the address book, answered from memory.

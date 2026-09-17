@@ -49,6 +49,10 @@ object Formatting {
         }
     }
 
+    /** Just the clock time — "6:30 PM" — for "resumes automatically at ...". */
+    fun timeOfDay(millis: Long): String =
+        if (millis <= 0L) "" else formats().time.format(Date(millis))
+
     fun fullTimestamp(millis: Long): String =
         if (millis <= 0L) "" else formats().full.format(Date(millis))
 

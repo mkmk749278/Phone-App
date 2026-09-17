@@ -10,6 +10,9 @@ import com.dualshield.phone.core.model.Provenance
 import com.dualshield.phone.core.model.RuleAction
 import com.dualshield.phone.core.model.RuleCategory
 import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.core.shield.PauseDuration
+import com.dualshield.phone.core.shield.ShieldPause
+import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.core.number.PhoneNumberNormalizer
 import com.dualshield.phone.core.rules.CompiledRule
 import com.dualshield.phone.core.rules.RuleIndex
@@ -37,9 +40,16 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
         val allowRules: List<AllowRuleEntity> = emptyList(),
         val blockedCallCount: Int = 0,
         val blockedMessageCount: Int = 0,
+        val pause: ShieldPause? = null,
         val message: String? = null,
     ) {
         val anyProtectionOn: Boolean get() = sims.any { it.protectionEnabled }
+
+        /** True while a pause is in force, whatever its scope. */
+        val isPaused: Boolean get() = pause != null
+
+        /** Whether this particular line is currently exempt from Shield. */
+        fun isPausedForSlot(slotIndex: Int): Boolean = pause?.covers(slotIndex) == true
 
         fun sim(slotIndex: Int): SimOption? = sims.firstOrNull { it.slotIndex == slotIndex }
 
@@ -140,6 +150,13 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                 }
         }
         viewModelScope.launch {
+            // The stored pause drops itself once expired, so the screen returns to
+            // "Protection ON" on its own without anything having to fire a timer.
+            container.settingsRepository.settings.collect { settings ->
+                _state.update { it.copy(pause = settings.shieldPause) }
+            }
+        }
+        viewModelScope.launch {
             container.vaultRepository.observeBlockedCallCount().collect { count ->
                 _state.update { it.copy(blockedCallCount = count) }
             }
@@ -149,6 +166,51 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
                 _state.update { it.copy(blockedMessageCount = count) }
             }
         }
+    }
+
+    // ------------------------------------------------------------------ pause
+
+    /**
+     * Starts a pause.
+     *
+     * Nothing in the rule set is touched: the rules stay exactly as they are and simply stop
+     * being enforced for the chosen scope until the pause lapses or is lifted.
+     */
+    fun pauseShield(duration: PauseDuration, scope: SimScope) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val pause = duration.toPause(scope, now)
+            runCatching { container.settingsRepository.setShieldPause(pause) }
+                .onSuccess {
+                    _state.update { it.copy(message = pauseStartedMessage(pause, scope)) }
+                }
+                .onFailure {
+                    _state.update { it.copy(message = "Shield couldn't be paused.") }
+                }
+        }
+    }
+
+    /** Lifts the pause early. Protection returns to exactly what it was. */
+    fun resumeShield() {
+        viewModelScope.launch {
+            runCatching { container.settingsRepository.clearShieldPause() }
+                .onSuccess { _state.update { it.copy(message = "Shield resumed") } }
+                .onFailure {
+                    _state.update { it.copy(message = "Shield couldn't be resumed.") }
+                }
+        }
+    }
+
+    private fun pauseStartedMessage(pause: ShieldPause, scope: SimScope): String {
+        val where = when (scope) {
+            SimScope.BOTH -> "both SIMs"
+            SimScope.SIM1 -> _state.value.sim(0)?.display ?: "SIM 1"
+            SimScope.SIM2 -> _state.value.sim(1)?.display ?: "SIM 2"
+        }
+        val until = pause.expiresAtMillis
+            ?.let { " until ${Formatting.timeOfDay(it)}" }
+            .orEmpty()
+        return "Shield paused on $where$until"
     }
 
     // ------------------------------------------------------------------ SIM state

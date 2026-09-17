@@ -70,6 +70,7 @@ class AppContainer(
             simRepository = simRepository,
             vaultRepository = vaultRepository,
             contactsRepository = contactsRepository,
+            settingsRepository = settingsRepository,
         )
     }
 }
