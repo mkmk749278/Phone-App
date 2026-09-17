@@ -11,11 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +39,7 @@ import com.dualshield.phone.ui.components.ContactAvatar
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 import kotlinx.coroutines.delay
 
 /**
@@ -102,7 +103,7 @@ fun InCallScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = shieldColors.onHeroSurfaceMuted,
             )
-            VerticalSpacer(20.dp)
+            VerticalSpacer(Spacing.xl)
             ContactAvatar(
                 name = call.displayName,
                 number = call.number,
@@ -110,7 +111,7 @@ fun InCallScreen(
                 containerColor = shieldColors.onHeroSurface.copy(alpha = 0.12f),
                 contentColor = shieldColors.onHeroSurface,
             )
-            VerticalSpacer(18.dp)
+            VerticalSpacer(Spacing.lg)
             Text(
                 text = call.displayName?.takeIf { it.isNotBlank() }
                     ?: Formatting.displayNumber(call.number),
@@ -125,14 +126,14 @@ fun InCallScreen(
                     color = shieldColors.onHeroSurfaceMuted,
                 )
             }
-            VerticalSpacer(8.dp)
+            VerticalSpacer(Spacing.sm)
             Text(
                 text = Formatting.simLabel(call.slotIndex, call.simLabel),
                 style = MaterialTheme.typography.labelLarge,
                 color = shieldColors.onHeroSurfaceMuted,
             )
             if (call.isActive) {
-                VerticalSpacer(8.dp)
+                VerticalSpacer(Spacing.sm)
                 Text(
                     text = Formatting.elapsed(call.connectTimeMillis, now),
                     style = MaterialTheme.typography.titleMedium,
@@ -143,7 +144,7 @@ fun InCallScreen(
             VerticalSpacer(40.dp)
 
             if (call.isActive || call.isOnHold) {
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
                     ControlButton(
                         active = muted,
                         onClick = onToggleMute,

@@ -24,6 +24,7 @@ import com.dualshield.phone.ui.components.AppListRow
 import com.dualshield.phone.ui.components.ContactAvatar
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /** Everything the sheet needs to know about the number it was opened for. */
 data class NumberActionTarget(
@@ -87,7 +88,7 @@ fun NumberActionSheet(
                 },
             )
             HorizontalDivider()
-            VerticalSpacer(4.dp)
+            VerticalSpacer(Spacing.xs)
 
             // One call row per SIM when there are two, so the line is chosen before the call
             // rather than after it. With one SIM there is nothing to choose.

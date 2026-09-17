@@ -2,11 +2,11 @@ package com.dualshield.phone.ui.phone
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -21,8 +21,8 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +47,7 @@ import com.dualshield.phone.ui.components.SegmentedControl
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The home screen: Recents.
@@ -85,20 +86,19 @@ fun PhoneScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
-            item(key = "title") {
-                Text("Phone", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(10.dp)
-            }
             item(key = "search") {
                 SearchField(
                     value = state.query,
                     onValueChange = onQueryChange,
                     placeholder = "Search contacts or numbers",
                 )
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
             item(key = "tabs") {
                 SegmentedControl(
@@ -106,7 +106,7 @@ fun PhoneScreen(
                     selectedIndex = tab,
                     onSelect = { tab = it },
                 )
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
 
             if (tab == 0) {
@@ -142,7 +142,7 @@ fun PhoneScreen(
                 // history, it is a security log.
                 if (state.blockedCallCount > 0) {
                     item(key = "blocked-entry") {
-                        VerticalSpacer(6.dp)
+                        VerticalSpacer(Spacing.sm)
                         SectionCard {
                             AppListRow(
                                 title = "Blocked call logs",
@@ -181,7 +181,7 @@ fun PhoneScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(80.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.listBottomInset) }
         }
     }
 }

@@ -40,6 +40,7 @@ import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimChipRow
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The height of the search-results area above the keypad.
@@ -98,10 +99,10 @@ fun DialpadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 17.dp),
+                .padding(horizontal = Spacing.gutter),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            VerticalSpacer(12.dp)
+            VerticalSpacer(Spacing.md)
             Text(
                 text = state.dialInput.ifEmpty { " " },
                 style = MaterialTheme.typography.displaySmall,
@@ -121,7 +122,7 @@ fun DialpadScreen(
             // The results area is a fixed slot, not a block that pushes the keypad around.
             // Its height never changes with the number of results, so the keys stay exactly
             // where the user's thumb left them while the list above fills and empties.
-            VerticalSpacer(8.dp)
+            VerticalSpacer(Spacing.sm)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -153,17 +154,17 @@ fun DialpadScreen(
                 }
             }
 
-            VerticalSpacer(10.dp)
+            VerticalSpacer(Spacing.md)
             SimChipRow(
                 options = state.sims,
                 selectedSlot = state.selectedSlot,
                 onSelect = onSelectSim,
             )
 
-            VerticalSpacer(14.dp)
+            VerticalSpacer(Spacing.lg)
             DialGrid(onDigit = onDigit, onZeroLongPress = onZeroLongPress)
 
-            VerticalSpacer(10.dp)
+            VerticalSpacer(Spacing.md)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -208,14 +209,14 @@ fun DialpadScreen(
             }
 
             if (selectedSim != null && state.dialInput.isNotEmpty()) {
-                VerticalSpacer(8.dp)
+                VerticalSpacer(Spacing.sm)
                 Text(
                     text = "Calling with ${selectedSim.display}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            VerticalSpacer(16.dp)
+            VerticalSpacer(Spacing.lg)
         }
     }
 }
@@ -228,12 +229,12 @@ private fun DialGrid(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         DIAL_KEYS.chunked(3).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 row.forEach { key ->
                     Box(

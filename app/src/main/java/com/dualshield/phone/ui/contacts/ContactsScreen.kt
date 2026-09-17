@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -20,6 +19,7 @@ import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SearchField
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The contact list.
@@ -48,20 +48,19 @@ fun ContactsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
-            item(key = "title") {
-                Text("Contacts", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(10.dp)
-            }
             item(key = "search") {
                 SearchField(
                     value = state.query,
                     onValueChange = onQueryChange,
                     placeholder = "Search contacts",
                 )
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
 
             if (contacts.isEmpty()) {
@@ -92,7 +91,7 @@ fun ContactsScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(80.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }

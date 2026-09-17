@@ -24,6 +24,7 @@ import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.StatusPill
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Runs the real engine against a number, changing nothing.
@@ -53,10 +54,10 @@ fun RuleTesterScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = Spacing.gutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
-            VerticalSpacer(4.dp)
+            VerticalSpacer(Spacing.xs)
             Text(
                 text = "Nothing is saved or changed while you test.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -86,7 +87,7 @@ fun RuleTesterScreen(
 
             tester.outcome?.let { outcome ->
                 SectionCard {
-                    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
                         StatusPill(
                             text = outcome.headline,
                             containerColor = if (outcome.matched) {
@@ -100,13 +101,13 @@ fun RuleTesterScreen(
                                 shieldColors.protected
                             },
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         Text(outcome.detail, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
-            VerticalSpacer(32.dp)
+            VerticalSpacer(Spacing.xxl)
         }
     }
 }

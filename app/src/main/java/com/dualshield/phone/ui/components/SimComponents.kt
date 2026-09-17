@@ -1,6 +1,5 @@
 package com.dualshield.phone.ui.components
 
-import androidx.compose.runtime.Immutable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +25,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
+import com.dualshield.phone.ui.theme.Sizes
+import com.dualshield.phone.ui.theme.Spacing
 
 /** A SIM as the UI needs it: a slot, the user's label, and whether it is physically present. */
 @Immutable
@@ -35,16 +37,19 @@ data class SimOption(
     val protectionEnabled: Boolean,
     val allowContacts: Boolean = true,
 ) {
-    /**
-     * What to call this line on screen.
-     *
-     * A fresh profile has no label at all — the app does not name the user's SIMs for them —
-     * so the separator has to go with it. "SIM 1 · " with nothing after it reads as a missing
-     * value rather than an unnamed line.
-     */
-    val display: String
-        get() = if (label.isBlank()) "SIM ${slotIndex + 1}" else "SIM ${slotIndex + 1} · $label"
+    /** What to call this line on screen. One rule, defined once, in [Formatting.simLabel]. */
+    val display: String get() = Formatting.simLabel(slotIndex, label)
 }
+
+/**
+ * The display name for a slot, whether or not a profile for it has loaded yet.
+ *
+ * Every screen that resolves a scope to a name needs this, and each one used to write its
+ * own `firstOrNull { ... }?.display ?: "SIM 1"`. Ten copies of a fallback is ten chances for
+ * one of them to say something slightly different from the rest.
+ */
+fun List<SimOption>.displayForSlot(slotIndex: Int): String =
+    firstOrNull { it.slotIndex == slotIndex }?.display ?: Formatting.slotName(slotIndex)
 
 /**
  * Horizontal SIM chips, used on the dialpad and above the message composer.
@@ -141,7 +146,7 @@ fun SimScopeSelector(
                     .heightIn(min = MinTouchTarget)
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 RadioButton(selected = scope == selected, onClick = { onSelect(scope) })
                 Column {

@@ -28,7 +28,9 @@ import com.dualshield.phone.ui.components.ProtectionRuleRow
 import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.components.displayForSlot
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * One SIM's protection, and only that SIM's.
@@ -64,7 +66,7 @@ fun SimRulesScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DetailHeader(
-                title = sim?.display ?: "SIM ${slotIndex + 1}",
+                title = state.sims.displayForSlot(slotIndex),
                 subtitle = "Rules on this screen affect this SIM only",
                 onBack = onBack,
             )
@@ -81,13 +83,16 @@ fun SimRulesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
             if (!protectionOn) {
                 item(key = "protection-off") {
                     ProtectionOffNotice(sim = sim)
-                    VerticalSpacer(12.dp)
+                    VerticalSpacer(Spacing.md)
                 }
             }
 
@@ -103,7 +108,7 @@ fun SimRulesScreen(
                         checked = protectionOn,
                         onCheckedChange = onToggleProtection,
                     )
-                    RowDivider(insetStart = 15.dp)
+                    RowDivider(insetStart = Spacing.gutter)
                     SwitchRow(
                         title = "Always allow saved contacts",
                         detail = "Anyone in your contacts gets through, whatever a rule says",
@@ -112,7 +117,7 @@ fun SimRulesScreen(
                         onCheckedChange = onToggleAllowContacts,
                     )
                 }
-                VerticalSpacer(12.dp)
+                VerticalSpacer(Spacing.md)
             }
 
             item(key = "links") {
@@ -128,7 +133,7 @@ fun SimRulesScreen(
                     )
                     RowDivider()
                     AppListRow(
-                        title = "India protection",
+                        title = "India blocklist",
                         subtitle = if (protectionOn) {
                             "${enabledBuiltIns.size} built-in rules active on this SIM"
                         } else {
@@ -137,12 +142,12 @@ fun SimRulesScreen(
                         onClick = onOpenIndiaProtection,
                     )
                 }
-                VerticalSpacer(14.dp)
+                VerticalSpacer(Spacing.lg)
             }
 
             item(key = "your-rules-heading") {
                 Text("Your rules on this SIM", style = MaterialTheme.typography.titleMedium)
-                VerticalSpacer(8.dp)
+                VerticalSpacer(Spacing.sm)
             }
 
             if (userRules.isEmpty()) {
@@ -153,13 +158,13 @@ fun SimRulesScreen(
                     )
                 }
             } else {
-                groupedItems(items = userRules, key = { it.id }, dividerInset = 15.dp) { rule ->
+                groupedItems(items = userRules, key = { it.id }, dividerInset = Spacing.gutter) { rule ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ProtectionRuleRow(
-                            name = RuleDisplay.pattern(rule),
+                            name = RuleDisplay.patternOrName(rule),
                             detail = RuleDisplay.subtitle(rule, state.sims),
                             action = rule.action,
                             enabled = rule.enabled,
@@ -176,7 +181,7 @@ fun SimRulesScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(90.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.listBottomInset) }
         }
     }
 }
@@ -192,7 +197,7 @@ private fun SwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 15.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {

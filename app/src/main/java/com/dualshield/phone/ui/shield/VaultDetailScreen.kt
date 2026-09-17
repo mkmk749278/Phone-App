@@ -31,6 +31,7 @@ import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.StatusPill
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * One blocked call, explained.
@@ -60,7 +61,7 @@ fun VaultDetailScreen(
         if (record == null) {
             EmptyState(
                 title = "Record not found",
-                message = "This Vault record is no longer available.",
+                message = "This blocked call is no longer in your history.",
                 modifier = Modifier.padding(padding),
             )
             return@Scaffold
@@ -71,10 +72,10 @@ fun VaultDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = Spacing.gutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
-            VerticalSpacer(6.dp)
+            VerticalSpacer(Spacing.sm)
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = Formatting.displayNumber(record.rawNumber),
@@ -83,7 +84,7 @@ fun VaultDetailScreen(
                 record.displayName?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
-                VerticalSpacer(8.dp)
+                VerticalSpacer(Spacing.sm)
                 StatusPill(
                     text = "BLOCKED",
                     containerColor = shieldColors.blockedContainer,
@@ -122,7 +123,7 @@ fun VaultDetailScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            VerticalSpacer(32.dp)
+            VerticalSpacer(Spacing.xxl)
         }
     }
 
@@ -161,7 +162,7 @@ private enum class VaultAction { Allow, Block }
 
 @Composable
 private fun DetailRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+    Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,

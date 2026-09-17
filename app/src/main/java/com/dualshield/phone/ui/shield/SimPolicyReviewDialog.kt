@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.data.repository.SimRepository
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Asked once, on the first launch after the shipped SIM policy changed.
@@ -68,7 +69,7 @@ fun SimPolicyReviewDialog(
                         "you already had.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                VerticalSpacer(14.dp)
+                VerticalSpacer(Spacing.lg)
                 sims.forEach { sim ->
                     SimProposalRow(
                         sim = sim,
@@ -79,7 +80,7 @@ fun SimPolicyReviewDialog(
                         },
                     )
                 }
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
                 Text(
                     text = if (differs) {
                         "Your rules are not affected either way. Switching a line off keeps " +

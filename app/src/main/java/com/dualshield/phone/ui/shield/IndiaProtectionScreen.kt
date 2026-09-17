@@ -28,6 +28,7 @@ import com.dualshield.phone.ui.components.SimChipRow
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * The built-in India rule pack, grouped by what each series actually is.
@@ -80,7 +81,7 @@ fun IndiaProtectionScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DetailHeader(
-                title = "India protection",
+                title = "India blocklist",
                 subtitle = "Built-in rules for Indian numbering series",
                 onBack = onBack,
             )
@@ -90,8 +91,11 @@ fun IndiaProtectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
         ) {
             item(key = "sim-picker") {
                 Text(
@@ -99,9 +103,9 @@ fun IndiaProtectionScreen(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                VerticalSpacer(8.dp)
+                VerticalSpacer(Spacing.sm)
                 SimChipRow(options = sims, selectedSlot = selectedSlot, onSelect = onSelectSlot)
-                VerticalSpacer(14.dp)
+                VerticalSpacer(Spacing.lg)
             }
 
             // Every switch below is per-SIM, and this screen is the easiest place in the app
@@ -114,13 +118,13 @@ fun IndiaProtectionScreen(
                             "this screen is applied to calls on ${selected.display} until " +
                             "protection is turned on for it.",
                     )
-                    VerticalSpacer(14.dp)
+                    VerticalSpacer(Spacing.lg)
                 }
             }
 
             if (official.isNotEmpty()) {
                 section("Regulated series", "Allocated by India's numbering plan.")
-                groupedItems(items = official, key = { it.id }, dividerInset = 17.dp) { rule ->
+                groupedItems(items = official, key = { it.id }, dividerInset = Spacing.gutter) { rule ->
                     IndiaRuleRow(rule, onToggleRule, onOpenRule)
                 }
             }
@@ -130,14 +134,14 @@ fun IndiaProtectionScreen(
                     "Caller types",
                     "Off by default — each of these also catches legitimate callers.",
                 )
-                groupedItems(items = callerTypes, key = { it.id }, dividerInset = 17.dp) { rule ->
+                groupedItems(items = callerTypes, key = { it.id }, dividerInset = Spacing.gutter) { rule ->
                     IndiaRuleRow(rule, onToggleRule, onOpenRule)
                 }
             }
 
             if (other.isNotEmpty()) {
                 section("Other rules", "Built-in rules that do not fit the groups above.")
-                groupedItems(items = other, key = { it.id }, dividerInset = 17.dp) { rule ->
+                groupedItems(items = other, key = { it.id }, dividerInset = Spacing.gutter) { rule ->
                     IndiaRuleRow(rule, onToggleRule, onOpenRule)
                 }
             }
@@ -148,12 +152,12 @@ fun IndiaProtectionScreen(
                     "Community observations, not telecom classifications. They can match " +
                         "real businesses, so they ship switched off.",
                 )
-                groupedItems(items = heuristic, key = { it.id }, dividerInset = 17.dp) { rule ->
+                groupedItems(items = heuristic, key = { it.id }, dividerInset = Spacing.gutter) { rule ->
                     IndiaRuleRow(rule, onToggleRule, onOpenRule)
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(28.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }
@@ -163,14 +167,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
     caption: String,
 ) {
     item(key = "section-$title") {
-        VerticalSpacer(14.dp)
+        VerticalSpacer(Spacing.lg)
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(
             text = caption,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        VerticalSpacer(8.dp)
+        VerticalSpacer(Spacing.sm)
     }
 }
 
@@ -183,26 +187,29 @@ private fun IndiaRuleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 15.dp, vertical = 10.dp),
+            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            // The rule's name already carries its series — "1600 Transactional Service" —
+            // so the row needs no second line repeating the pattern. What it did carry was
+            // the raw expression, which said nothing to anyone who had not written it.
             Text(rule.name, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "${RuleDisplay.pattern(rule)} · ${RuleDisplay.action(rule)}",
+                text = RuleDisplay.status(rule),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (rule.description.isNotBlank()) {
-                VerticalSpacer(4.dp)
+                VerticalSpacer(Spacing.xs)
                 Text(
                     text = rule.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            VerticalSpacer(6.dp)
+            VerticalSpacer(Spacing.sm)
             ConfidenceBadge(confidence = rule.confidence, provenance = rule.provenance)
         }
         Switch(

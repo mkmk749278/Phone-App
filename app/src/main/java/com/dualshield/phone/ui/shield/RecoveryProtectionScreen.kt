@@ -28,6 +28,7 @@ import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SectionHeading
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Behavioural protection, per SIM.
@@ -48,18 +49,22 @@ fun RecoveryProtectionScreen(
     modifier: Modifier = Modifier,
 ) {
     val presentSims = sims.filter { it.present }
+    val selected = selectedSlot?.let { slot -> sims.firstOrNull { it.slotIndex == slot } }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { DetailHeader(title = "Repeated callers", onBack = onBack) },
+        topBar = { DetailHeader(title = "Recovery Call Protection", onBack = onBack) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "intro") {
                 Text(
@@ -86,6 +91,17 @@ fun RecoveryProtectionScreen(
                 }
             }
 
+            if (selected != null && !selected.protectionEnabled) {
+                item(key = "protection-off") {
+                    ProtectionOffNotice(
+                        sim = selected,
+                        detail = "Shield is not enforcing anything on ${selected.display}, " +
+                            "so nothing on this screen changes how calls on that line " +
+                            "behave. The settings are kept for when it is.",
+                    )
+                }
+            }
+
             item(key = "mode-heading") { SectionHeading("What to do") }
             item(key = "mode") {
                 SectionCard {
@@ -102,7 +118,16 @@ fun RecoveryProtectionScreen(
             }
 
             if (settings.isActive) {
-                item(key = "signals-heading") { SectionHeading("What counts") }
+                item(key = "signals-heading") {
+                    SectionHeading("What counts")
+                    Text(
+                        text = "These switches decide which patterns are noticed, not what " +
+                            "happens next. Turning one on adds it to the evidence; what " +
+                            "Shield then does about a suspicious caller is the choice above.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 item(key = "signals") {
                     SectionCard {
                         ToggleRow(
@@ -140,7 +165,7 @@ fun RecoveryProtectionScreen(
             }
 
             item(key = "caveat") {
-                VerticalSpacer(4.dp)
+                VerticalSpacer(Spacing.xs)
                 Text(
                     text = "Saved contacts are never affected by this, however they call. " +
                         "These are observations about calling patterns, not judgements about " +
@@ -151,7 +176,7 @@ fun RecoveryProtectionScreen(
                 )
             }
 
-            item(key = "bottom-space") { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }
@@ -185,7 +210,7 @@ private fun ToggleRow(
             .selectable(selected = checked, onClick = { onChange(!checked) })
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Checkbox(checked = checked, onCheckedChange = null)
         Column(modifier = Modifier.fillMaxWidth()) {

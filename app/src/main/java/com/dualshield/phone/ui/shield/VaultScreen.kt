@@ -31,6 +31,7 @@ import com.dualshield.phone.ui.components.SegmentedControl
 import com.dualshield.phone.ui.components.VaultItem
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Blocked call logs — the one place blocked activity is listed.
@@ -59,7 +60,7 @@ fun VaultScreen(
                 onBack = onBack,
                 actions = {
                     IconButton(onClick = { confirmClear = true }) {
-                        Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear Vault")
+                        Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear blocked call history")
                     }
                 },
             )
@@ -69,8 +70,11 @@ fun VaultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item {
                 SegmentedControl(
@@ -137,14 +141,14 @@ fun VaultScreen(
 
             item {
                 Text(
-                    text = "Clearing the Vault removes this history only. Your rules and " +
+                    text = "Clearing this removes the history only. Your rules and " +
                         "allowed numbers are not affected.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            item { VerticalSpacer(24.dp) }
+            item { VerticalSpacer(Spacing.xl) }
         }
     }
 

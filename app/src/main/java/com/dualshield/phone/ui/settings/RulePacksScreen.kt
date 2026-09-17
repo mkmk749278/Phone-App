@@ -24,6 +24,7 @@ import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Rule pack management.
@@ -53,10 +54,10 @@ fun RulePacksScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = Spacing.gutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
-            VerticalSpacer(4.dp)
+            VerticalSpacer(Spacing.xs)
             Text("Installed packs", style = MaterialTheme.typography.titleMedium)
 
             if (state.packs.isEmpty()) {
@@ -68,7 +69,7 @@ fun RulePacksScreen(
             } else {
                 SectionCard {
                     state.packs.forEach { pack ->
-                        Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
                             Text(
                                 text = "${pack.packId} · v${pack.packVersion}",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -104,12 +105,12 @@ fun RulePacksScreen(
 
             state.exportedJson?.let { json ->
                 SectionCard {
-                    Column(modifier = Modifier.padding(15.dp)) {
+                    Column(modifier = Modifier.padding(Spacing.rowPaddingH)) {
                         Text(
                             text = "${json.length} characters ready to share.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         Button(
                             onClick = { onShareExport(json) },
                             modifier = Modifier.fillMaxWidth(),
@@ -151,7 +152,7 @@ fun RulePacksScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            VerticalSpacer(32.dp)
+            VerticalSpacer(Spacing.xxl)
         }
     }
 }

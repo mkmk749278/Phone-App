@@ -20,6 +20,7 @@ import com.dualshield.phone.ui.components.RowDivider
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SectionHeading
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * What this device will and will not let the app record.
@@ -44,8 +45,11 @@ fun CallRecordingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item(key = "status") {
                 SectionCard {
@@ -58,7 +62,7 @@ fun CallRecordingScreen(
                             },
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        VerticalSpacer(6.dp)
+                        VerticalSpacer(Spacing.sm)
                         Text(
                             text = capability.explanation,
                             style = MaterialTheme.typography.bodyMedium,
@@ -99,7 +103,7 @@ fun CallRecordingScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         Text(
                             text = "Some apps record the microphone instead and call it call " +
                                 "recording. That captures your side and, at best, a faint " +
@@ -109,7 +113,7 @@ fun CallRecordingScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         Text(
                             text = "If your phone's own dialer records calls, it can do so " +
                                 "because the manufacturer gave it permissions no third-party " +
@@ -117,7 +121,7 @@ fun CallRecordingScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         Text(
                             text = "This app also does not ask for microphone access. Asking " +
                                 "would not make call recording work, and a permission that " +
@@ -140,7 +144,7 @@ fun CallRecordingScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         Text(
                             text = "This app does not suppress those announcements and does " +
                                 "not work around carrier or device restrictions.",
@@ -166,7 +170,7 @@ fun CallRecordingScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(24.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.xl) }
         }
     }
 }

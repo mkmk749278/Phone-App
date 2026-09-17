@@ -589,6 +589,10 @@ fun DualShieldNavHost(
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
                 onOpenRulePacks = { navController.navigate(Routes.RULE_PACKS) },
+                onOpenBlockedNumbers = { navController.navigate(Routes.BLOCKED_NUMBERS) },
+                onOpenAllowlist = { navController.navigate(Routes.allowlist(null)) },
+                onOpenIndiaBlocklist = { navController.navigate(Routes.INDIA_PROTECTION) },
+                onOpenRecovery = { navController.navigate(Routes.RECOVERY_PROTECTION) },
             )
         }
 

@@ -27,6 +27,7 @@ import com.dualshield.phone.ui.components.StatusPill
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 
 /** The conversation list. A plain SMS app, with one quiet Vault entry at the bottom. */
 @Composable
@@ -54,20 +55,19 @@ fun MessagesScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(
+                horizontal = Spacing.gutter,
+                vertical = Spacing.md,
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            item(key = "title") {
-                Text("Messages", style = MaterialTheme.typography.displaySmall)
-                VerticalSpacer(10.dp)
-            }
             item(key = "search") {
                 SearchField(
                     value = state.query,
                     onValueChange = onQueryChange,
                     placeholder = "Search messages",
                 )
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
             }
 
             if (threads.isEmpty()) {
@@ -91,6 +91,7 @@ fun MessagesScreen(
                         title = thread.displayName?.takeIf { it.isNotBlank() }
                             ?: Formatting.displayNumber(thread.address),
                         subtitle = thread.snippet,
+                        subtitleMaxLines = 2,
                         leading = {
                             ContactAvatar(
                                 thread.displayName,
@@ -111,14 +112,14 @@ fun MessagesScreen(
             }
 
             item(key = "vault") {
-                VerticalSpacer(10.dp)
+                VerticalSpacer(Spacing.md)
                 SectionCard {
                     AppListRow(
-                        title = "Blocked call logs",
+                        title = "Filtered messages",
                         subtitle = if (state.blockedMessageCount == 0) {
-                            "No messages filtered"
+                            "Nothing filtered"
                         } else {
-                            "${state.blockedMessageCount} filtered messages"
+                            "${state.blockedMessageCount} kept out of your inbox"
                         },
                         leading = {
                             Icon(
@@ -141,7 +142,7 @@ fun MessagesScreen(
                 }
             }
 
-            item(key = "bottom-space") { VerticalSpacer(80.dp) }
+            item(key = "bottom-space") { VerticalSpacer(Spacing.listBottomInset) }
         }
     }
 }

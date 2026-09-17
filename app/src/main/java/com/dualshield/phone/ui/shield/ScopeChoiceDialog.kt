@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.SimScopeSelector
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Asks which SIM an action applies to.
@@ -40,7 +41,7 @@ fun ScopeChoiceDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "Applies to",

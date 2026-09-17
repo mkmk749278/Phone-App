@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.VerticalSpacer
+import com.dualshield.phone.ui.theme.Spacing
 
 private val GUARANTEES = listOf(
     "No Internet permission" to
@@ -25,7 +26,8 @@ private val GUARANTEES = listOf(
         "Nothing about your calls, messages or contacts is measured or reported.",
     "No advertising" to "There are no ad SDKs in the app.",
     "No cloud backup" to
-        "Your rules and Vault are excluded from cloud backup and device transfer.",
+        "Your rules and blocked call history are excluded from cloud backup and device " +
+            "transfer.",
     "Contacts stay local" to
         "Contact lookup uses the phone's own contact database and nothing else.",
 )
@@ -51,10 +53,10 @@ fun PrivacyScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = Spacing.gutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            VerticalSpacer(4.dp)
+            VerticalSpacer(Spacing.xs)
             Text(
                 text = "DualShieldPhone works entirely on this device.",
                 style = MaterialTheme.typography.titleLarge,
@@ -68,7 +70,7 @@ fun PrivacyScreen(
 
             SectionCard {
                 GUARANTEES.forEach { (title, detail) ->
-                    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
                         Text(title, style = MaterialTheme.typography.bodyLarge)
                         Text(
                             text = detail,
@@ -93,7 +95,7 @@ fun PrivacyScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            VerticalSpacer(32.dp)
+            VerticalSpacer(Spacing.xxl)
         }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -26,17 +27,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.dualshield.phone.core.model.PatternType
 import com.dualshield.phone.core.model.RuleAction
+import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SegmentedControl
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.SimScopeSelector
 import com.dualshield.phone.ui.components.StatusPill
-import com.dualshield.phone.ui.components.DetailHeader
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.theme.LocalShieldColors
+import com.dualshield.phone.ui.theme.Spacing
 
 private val BASIC_TYPES = listOf(PatternType.EXACT, PatternType.PREFIX)
 private val ADVANCED_TYPES = listOf(PatternType.CONTAINS, PatternType.REGEX, PatternType.SPECIAL)
@@ -89,10 +90,10 @@ fun RuleEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 17.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = Spacing.gutter),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
-            VerticalSpacer(4.dp)
+            VerticalSpacer(Spacing.xs)
 
             OutlinedTextField(
                 value = draft.name,
@@ -124,18 +125,18 @@ fun RuleEditorScreen(
 
             if (advancedOpen) {
                 SectionCard {
-                    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 8.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.sm)) {
                         Text(
                             "Advanced matching",
                             style = MaterialTheme.typography.labelLarge,
                         )
-                        VerticalSpacer(4.dp)
+                        VerticalSpacer(Spacing.xs)
                         Text(
                             "These can match more numbers than you expect. Test before saving.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        VerticalSpacer(10.dp)
+                        VerticalSpacer(Spacing.md)
                         SegmentedControl(
                             options = ADVANCED_TYPES.map { it.label() },
                             selectedIndex = ADVANCED_TYPES.indexOf(draft.patternType)
@@ -181,7 +182,7 @@ fun RuleEditorScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 15.dp, vertical = 10.dp),
+                            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Calls", style = MaterialTheme.typography.bodyLarge)
@@ -191,7 +192,7 @@ fun RuleEditorScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 15.dp, vertical = 10.dp),
+                            .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -243,7 +244,7 @@ fun RuleEditorScreen(
 
             draft.testOutcome?.let { outcome ->
                 SectionCard {
-                    Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md)) {
                         StatusPill(
                             text = outcome.headline,
                             containerColor = if (outcome.matched) {
@@ -257,7 +258,7 @@ fun RuleEditorScreen(
                                 shieldColors.protected
                             },
                         )
-                        VerticalSpacer(8.dp)
+                        VerticalSpacer(Spacing.sm)
                         Text(outcome.detail, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
@@ -265,7 +266,7 @@ fun RuleEditorScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 OutlinedButton(onClick = onTest, modifier = Modifier.weight(1f)) {
                     Text("Test")
@@ -289,7 +290,7 @@ fun RuleEditorScreen(
                 )
             }
 
-            VerticalSpacer(32.dp)
+            VerticalSpacer(Spacing.xxl)
         }
     }
 }

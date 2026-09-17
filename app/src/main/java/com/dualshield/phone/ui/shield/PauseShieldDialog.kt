@@ -1,11 +1,11 @@
 package com.dualshield.phone.ui.shield
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
 import com.dualshield.phone.core.shield.PauseDuration
 import com.dualshield.phone.ui.components.SimOption
+import com.dualshield.phone.ui.theme.Spacing
 
 /**
  * Chooses how long to pause Shield, and for which line.
@@ -106,7 +107,7 @@ private fun ChoiceRow(label: String, selected: Boolean, onSelect: () -> Unit) {
             .selectable(selected = selected, onClick = onSelect)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         RadioButton(selected = selected, onClick = null)
         Text(label, style = MaterialTheme.typography.bodyLarge)

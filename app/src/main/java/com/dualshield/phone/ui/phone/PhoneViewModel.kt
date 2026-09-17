@@ -12,6 +12,7 @@ import com.dualshield.phone.data.system.Contact
 import com.dualshield.phone.data.system.RecentCall
 import com.dualshield.phone.telecom.CallPlacer
 import com.dualshield.phone.ui.components.SimOption
+import com.dualshield.phone.ui.components.displayForSlot
 import com.dualshield.phone.ui.simOptionsFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -347,8 +348,8 @@ class PhoneViewModel(private val container: AppContainer) : ViewModel() {
         val sims = _state.value.sims
         return when (scope) {
             SimScope.BOTH -> "both SIMs"
-            SimScope.SIM1 -> sims.firstOrNull { it.slotIndex == 0 }?.display ?: "SIM 1"
-            SimScope.SIM2 -> sims.firstOrNull { it.slotIndex == 1 }?.display ?: "SIM 2"
+            SimScope.SIM1 -> sims.displayForSlot(0)
+            SimScope.SIM2 -> sims.displayForSlot(1)
         }
     }
 

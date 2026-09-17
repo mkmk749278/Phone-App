@@ -10,19 +10,20 @@ import com.dualshield.phone.core.model.Provenance
 import com.dualshield.phone.core.model.RuleAction
 import com.dualshield.phone.core.model.RuleCategory
 import com.dualshield.phone.core.model.SimScope
-import com.dualshield.phone.core.shield.PauseDuration
-import com.dualshield.phone.core.shield.RecoverySettings
-import com.dualshield.phone.core.shield.ShieldPause
-import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.core.number.PhoneNumberNormalizer
 import com.dualshield.phone.core.rules.CompiledRule
 import com.dualshield.phone.core.rules.RuleIndex
 import com.dualshield.phone.core.rules.ShieldDecision
+import com.dualshield.phone.core.shield.PauseDuration
+import com.dualshield.phone.core.shield.RecoverySettings
+import com.dualshield.phone.core.shield.ShieldPause
 import com.dualshield.phone.data.db.entity.AllowRuleEntity
 import com.dualshield.phone.data.db.entity.CallRuleEntity
 import com.dualshield.phone.data.repository.compile
 import com.dualshield.phone.data.rulepack.RulePackParser
+import com.dualshield.phone.ui.components.Formatting
 import com.dualshield.phone.ui.components.SimOption
+import com.dualshield.phone.ui.components.displayForSlot
 import com.dualshield.phone.ui.simOptionsFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -218,8 +219,8 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
     private fun pauseStartedMessage(pause: ShieldPause, scope: SimScope): String {
         val where = when (scope) {
             SimScope.BOTH -> "both SIMs"
-            SimScope.SIM1 -> _state.value.sim(0)?.display ?: "SIM 1"
-            SimScope.SIM2 -> _state.value.sim(1)?.display ?: "SIM 2"
+            SimScope.SIM1 -> _state.value.sims.displayForSlot(0)
+            SimScope.SIM2 -> _state.value.sims.displayForSlot(1)
         }
         val until = pause.expiresAtMillis
             ?.let { " until ${Formatting.timeOfDay(it)}" }
@@ -249,7 +250,7 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
     fun setProtectionEnabled(slotIndex: Int, enabled: Boolean) {
         viewModelScope.launch {
             container.simRepository.setFilteringEnabled(slotIndex, enabled)
-            val label = _state.value.sim(slotIndex)?.display ?: "SIM ${slotIndex + 1}"
+            val label = _state.value.sims.displayForSlot(slotIndex)
             _state.update {
                 it.copy(
                     message = if (enabled) {
@@ -289,9 +290,9 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
             _state.update {
                 it.copy(
                     message = if (next == RuleAction.BLOCK) {
-                        "${RuleDisplay.pattern(rule)} is now blocked"
+                        "${RuleDisplay.patternOrName(rule)} is now blocked"
                     } else {
-                        "${RuleDisplay.pattern(rule)} is now always allowed"
+                        "${RuleDisplay.patternOrName(rule)} is now always allowed"
                     },
                 )
             }
@@ -646,8 +647,8 @@ class ShieldViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun scopeDisplay(scope: SimScope): String = when (scope) {
         SimScope.BOTH -> "both SIMs"
-        SimScope.SIM1 -> _state.value.sim(0)?.display ?: "SIM 1"
-        SimScope.SIM2 -> _state.value.sim(1)?.display ?: "SIM 2"
+        SimScope.SIM1 -> _state.value.sims.displayForSlot(0)
+        SimScope.SIM2 -> _state.value.sims.displayForSlot(1)
     }
 }
 
