@@ -84,6 +84,13 @@ fun SimRulesScreen(
             contentPadding = PaddingValues(horizontal = 17.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
+            if (!protectionOn) {
+                item(key = "protection-off") {
+                    ProtectionOffNotice(sim = sim)
+                    VerticalSpacer(12.dp)
+                }
+            }
+
             item(key = "switches") {
                 SectionCard {
                     SwitchRow(
@@ -112,13 +119,21 @@ fun SimRulesScreen(
                 SectionCard {
                     AppListRow(
                         title = "Allowed numbers",
-                        subtitle = "$allowCount numbers always ring through on this SIM",
+                        subtitle = if (protectionOn) {
+                            "$allowCount numbers always ring through on this SIM"
+                        } else {
+                            "$allowCount saved · every call rings while protection is off"
+                        },
                         onClick = onOpenAllowlist,
                     )
                     RowDivider()
                     AppListRow(
                         title = "India protection",
-                        subtitle = "${enabledBuiltIns.size} built-in rules active on this SIM",
+                        subtitle = if (protectionOn) {
+                            "${enabledBuiltIns.size} built-in rules active on this SIM"
+                        } else {
+                            "${enabledBuiltIns.size} built-in rules on, none enforced"
+                        },
                         onClick = onOpenIndiaProtection,
                     )
                 }

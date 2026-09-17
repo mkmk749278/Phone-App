@@ -35,7 +35,15 @@ data class SimOption(
     val protectionEnabled: Boolean,
     val allowContacts: Boolean = true,
 ) {
-    val display: String get() = "SIM ${slotIndex + 1} · $label"
+    /**
+     * What to call this line on screen.
+     *
+     * A fresh profile has no label at all — the app does not name the user's SIMs for them —
+     * so the separator has to go with it. "SIM 1 · " with nothing after it reads as a missing
+     * value rather than an unnamed line.
+     */
+    val display: String
+        get() = if (label.isBlank()) "SIM ${slotIndex + 1}" else "SIM ${slotIndex + 1} · $label"
 }
 
 /**

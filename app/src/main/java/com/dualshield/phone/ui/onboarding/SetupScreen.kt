@@ -273,7 +273,7 @@ private fun SimSetupCard(
                     onLabelChange(it)
                 },
                 label = { Text("What is this SIM for?") },
-                placeholder = { Text("Personal") },
+                placeholder = { Text("e.g. Personal, Work, Family") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

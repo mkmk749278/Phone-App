@@ -26,9 +26,15 @@ class SimRepository(
     /**
      * Creates the two default profiles on first run.
      *
-     * SIM 1 starts with protection OFF and SIM 2 with protection ON. Neither slot is
-     * assumed to be any particular *kind* of line — the app does not know which of the
-     * user's SIMs is which, and does not guess.
+     * Slot 0 starts protected and slot 1 unprotected, which matches the asymmetric policy
+     * the product is built around: one line that needs filtering, and one that must ring
+     * for anything — an unknown number on the second line is expected to be a call worth
+     * taking.
+     *
+     * This is a *starting point*, not an assumption about what the lines are for. The app
+     * does not know which SIM is which, does not name them, and either slot can be switched
+     * at any time. Only a first run is affected: an existing install keeps whatever the user
+     * already chose.
      */
     suspend fun ensureDefaults(now: Long) {
         if (dao.getAll().isNotEmpty()) return
@@ -37,13 +43,13 @@ class SimRepository(
                 SimProfileEntity(
                     slotIndex = 0,
                     label = defaultLabelForSlot(0),
-                    filteringEnabled = false,
+                    filteringEnabled = defaultFilteringForSlot(0),
                     lastSeenAt = now,
                 ),
                 SimProfileEntity(
                     slotIndex = 1,
                     label = defaultLabelForSlot(1),
-                    filteringEnabled = true,
+                    filteringEnabled = defaultFilteringForSlot(1),
                     lastSeenAt = now,
                 ),
             ),
@@ -60,8 +66,7 @@ class SimRepository(
                     SimProfileEntity(
                         slotIndex = sim.slotIndex,
                         label = defaultLabelForSlot(sim.slotIndex),
-                        // Any slot beyond the first two is a surprise; leave it unfiltered.
-                        filteringEnabled = sim.slotIndex == 1,
+                        filteringEnabled = defaultFilteringForSlot(sim.slotIndex),
                         subscriptionId = sim.subscriptionId,
                         carrierName = sim.carrierName,
                         lastSeenAt = now,
@@ -132,5 +137,19 @@ class SimRepository(
         const val NO_LABEL = ""
 
         fun defaultLabelForSlot(@Suppress("UNUSED_PARAMETER") slotIndex: Int): String = NO_LABEL
+
+        /**
+         * Whether a brand-new profile for [slotIndex] starts with Shield enforcing.
+         *
+         * The first slot does, the second does not. It lives here as one function rather
+         * than as a literal at each creation site, because the two sites — first run and a
+         * SIM appearing later — used to disagree, and a slot created by the second path
+         * came up with the opposite setting from the same slot created by the first.
+         *
+         * Any slot beyond the first two is unexpected hardware, and starts unfiltered:
+         * leaving a line unfiltered is recoverable in a way that silently filtering one
+         * the user has not seen yet is not.
+         */
+        fun defaultFilteringForSlot(slotIndex: Int): Boolean = slotIndex == 0
     }
 }

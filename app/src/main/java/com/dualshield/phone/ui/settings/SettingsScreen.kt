@@ -195,7 +195,7 @@ private fun SimLabelEditor(
                     onLabelChange(it)
                 },
                 label = { Text("Label") },
-                placeholder = { Text("Duty") },
+                placeholder = { Text("e.g. Personal, Work, Family") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

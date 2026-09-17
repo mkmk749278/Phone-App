@@ -76,15 +76,33 @@ adb shell am force-stop com.dualshield.phone.preview
 
 ## 3. Dual-SIM isolation (§6, §14)
 
-With protection ON for SIM 2 only, and a block rule scoped to SIM 2:
+A fresh install ships **SIM 1 protected and SIM 2 not**. Confirm that on the Shield screen
+before anything else: SIM 1 reads "Protected", SIM 2 reads "Unprotected · Shield is off for
+this SIM".
 
-- [ ] Calling the SIM 2 number from the blocked number → blocked.
-- [ ] Calling the **SIM 1** number from the same blocked number → **rings**.
+> If you are upgrading rather than installing fresh, your existing choice is kept — the app
+> does not re-decide which line is filtered. Check Shield and set it the way you want before
+> running these.
+
+With the shipped defaults, and a block rule covering both SIMs:
+
+- [ ] Calling the **SIM 1** number from the blocked number → blocked.
+- [ ] Calling the **SIM 2** number from the same blocked number → **rings**.
 - [ ] Recents shows the correct SIM label on each call.
-- [ ] The labels shown are the ones you set, not "Duty"/"Personal".
+- [ ] The labels shown are the ones you set, not "Duty"/"Personal". An unnamed SIM reads
+      "SIM 1" / "SIM 2", never "SIM 1 · " with nothing after it.
 
-Then swap the rule to SIM 1 and repeat inverted. A failure here is the worst class of bug this
-app can have — a rule for one line silently affecting the other.
+Then invert it — protection ON for SIM 2 only — and repeat. A failure here is the worst class
+of bug this app can have: a rule for one line silently affecting the other.
+
+## 3b. Rules survive protection being switched off (§SIM policy)
+
+- [ ] With SIM 2 unprotected, open Shield → SIM 2. The screen says the rules are saved but
+      not enforced, and the rules are still listed.
+- [ ] Open India protection from there: it says the same, and the switches keep their state.
+- [ ] Turn SIM 2 protection ON. Call from a number its rules block → blocked.
+- [ ] Turn it OFF again. The same number → rings, immediately, with no restart.
+- [ ] Reboot. SIM 2 is still off, and its rules are still exactly as you left them.
 
 ## 4. Shield Pause (§Pause)
 

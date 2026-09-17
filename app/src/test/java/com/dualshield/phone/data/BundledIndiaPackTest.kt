@@ -9,6 +9,7 @@ import com.dualshield.phone.core.number.PhoneNumberNormalizer
 import com.dualshield.phone.core.rules.RuleEngine
 import com.dualshield.phone.core.rules.RuleSnapshot
 import com.dualshield.phone.core.rules.ShieldDecision
+import com.dualshield.phone.data.repository.SimRepository
 import com.dualshield.phone.data.repository.compile
 import com.dualshield.phone.data.rulepack.RulePackParser
 import com.dualshield.phone.data.rulepack.RulePackResult
@@ -136,35 +137,75 @@ class BundledIndiaPackTest {
     @Test
     fun `fresh install defaults behave as documented`() {
         val compiled = pack.rules.filter { it.enabled }.mapNotNull { it.compile() }
+        // The enabled flags come from the repository rather than from literals here. This
+        // test and the repository used to state the policy separately, and when the policy
+        // was inverted only one of them moved: the test went on passing while describing a
+        // configuration the app no longer shipped.
         val snapshot = RuleSnapshot(
-            perSlot = mapOf(
-                // SIM 1 — Duty: filtering off out of the box.
-                0 to RuleSnapshot.buildSimRuleSet(0, "Duty", false, emptySet(), compiled),
-                // SIM 2 — Personal: filtering on.
-                1 to RuleSnapshot.buildSimRuleSet(1, "Personal", true, emptySet(), compiled),
-            ),
+            perSlot = (0..1).associateWith { slot ->
+                RuleSnapshot.buildSimRuleSet(
+                    slotIndex = slot,
+                    label = "",
+                    filteringEnabled = SimRepository.defaultFilteringForSlot(slot),
+                    allowNumbers = emptySet(),
+                    rules = compiled,
+                )
+            },
         )
+        val protectedSlot = (0..1).first { SimRepository.defaultFilteringForSlot(it) }
+        val openSlot = (0..1).first { !SimRepository.defaultFilteringForSlot(it) }
 
         fun decide(number: String, slot: Int) =
             RuleEngine.evaluate(snapshot, PhoneNumberNormalizer.normalize(number), slot)
 
-        // Promotional and premium-rate are blocked on the personal line.
-        assertTrue(decide("1401234567", 1) is ShieldDecision.Block)
-        assertTrue(decide("0900123456", 1) is ShieldDecision.Block)
+        // Promotional and premium-rate are blocked on the protected line.
+        assertTrue(decide("1401234567", protectedSlot) is ShieldDecision.Block)
+        assertTrue(decide("0900123456", protectedSlot) is ShieldDecision.Block)
 
         // Service, transactional and toll-free traffic still gets through.
-        assertTrue(decide("1600123456", 1) is ShieldDecision.Allow)
-        assertTrue(decide("1601123456", 1) is ShieldDecision.Allow)
-        assertTrue(decide("18002026161", 1) is ShieldDecision.Allow)
+        assertTrue(decide("1600123456", protectedSlot) is ShieldDecision.Allow)
+        assertTrue(decide("1601123456", protectedSlot) is ShieldDecision.Allow)
+        assertTrue(decide("18002026161", protectedSlot) is ShieldDecision.Allow)
 
         // An ordinary mobile is untouched.
-        assertTrue(decide("9876543210", 1) is ShieldDecision.Allow)
+        assertTrue(decide("9876543210", protectedSlot) is ShieldDecision.Allow)
 
         // A number matching a seeded heuristic is allowed, because heuristics ship off.
-        assertTrue(decide("9880351234", 1) is ShieldDecision.Allow)
+        assertTrue(decide("9880351234", protectedSlot) is ShieldDecision.Allow)
 
-        // And the duty line is filtered by nothing at all.
-        assertTrue(decide("1401234567", 0) is ShieldDecision.Allow)
-        assertTrue(decide("0900123456", 0) is ShieldDecision.Allow)
+        // And the unprotected line is filtered by nothing at all.
+        assertTrue(decide("1401234567", openSlot) is ShieldDecision.Allow)
+        assertTrue(decide("0900123456", openSlot) is ShieldDecision.Allow)
+    }
+
+    @Test
+    fun `the pack is enforceable on the SIM that ships protected`() {
+        // The failure this exists to catch: the pack's own block rules were scoped to the
+        // slot that ships *unprotected*, so a fresh install parsed 38 rules, showed them in
+        // the UI, and blocked nothing whatsoever. Scope and protection policy are set in two
+        // different files, and nothing else notices when they stop agreeing.
+        val protectedSlot = (0..1).first { SimRepository.defaultFilteringForSlot(it) }
+        val enforceable = pack.rules.filter {
+            it.enabled &&
+                it.action == RuleAction.BLOCK &&
+                it.simScope.coversSlot(protectedSlot)
+        }
+        assertTrue(
+            "No enabled block rule covers slot $protectedSlot, the only slot that ships " +
+                "with Shield on. A fresh install would block nothing.",
+            enforceable.isNotEmpty(),
+        )
+    }
+
+    @Test
+    fun `the India screen is not empty for either SIM`() {
+        // The same mismatch seen from the UI: selecting a SIM whose slot no pack rule covers
+        // shows an empty screen, which reads as "no protection available for this line".
+        (0..1).forEach { slot ->
+            assertTrue(
+                "No bundled rule is configurable for slot $slot",
+                pack.rules.any { it.simScope.coversSlot(slot) },
+            )
+        }
     }
 }
