@@ -42,6 +42,7 @@ import com.dualshield.phone.ui.phone.NumberActionSheet
 import com.dualshield.phone.ui.phone.NumberActionTarget
 import com.dualshield.phone.ui.phone.PhoneScreen
 import com.dualshield.phone.ui.phone.PhoneViewModel
+import com.dualshield.phone.ui.settings.CallRecordingScreen
 import com.dualshield.phone.ui.settings.PrivacyScreen
 import com.dualshield.phone.ui.settings.RulePacksScreen
 import com.dualshield.phone.ui.settings.SettingsScreen
@@ -578,9 +579,20 @@ fun DualShieldNavHost(
                 onSimLabelChange = settingsViewModel::setSimLabel,
                 onNotifyChange = settingsViewModel::setNotifyOnBlockedCall,
                 onOpenShield = { navController.navigate(Routes.SHIELD) },
+                onOpenCallRecording = { navController.navigate(Routes.CALL_RECORDING) },
                 onOpenVault = { navController.navigate(Routes.VAULT) },
                 onOpenPrivacy = { navController.navigate(Routes.PRIVACY) },
                 onOpenRulePacks = { navController.navigate(Routes.RULE_PACKS) },
+            )
+        }
+
+        composable(Routes.CALL_RECORDING) {
+            val state by settingsViewModel.state.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { settingsViewModel.detectRecordingCapability() }
+            CallRecordingScreen(
+                capability = state.recordingCapability,
+                onRecheck = { settingsViewModel.detectRecordingCapability(force = true) },
+                onBack = { navController.popBackStack() },
             )
         }
 

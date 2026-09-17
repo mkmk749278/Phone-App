@@ -7,6 +7,7 @@ import com.dualshield.phone.AppContainer
 import com.dualshield.phone.data.db.entity.RulePackMetadataEntity
 import com.dualshield.phone.data.repository.AppSettings
 import com.dualshield.phone.data.rulepack.RulePackResult
+import com.dualshield.phone.core.recording.RecordingCapability
 import com.dualshield.phone.telecom.RoleStatus
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.simOptionsFlow
@@ -14,7 +15,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Settings, SIM profiles, rule packs and the privacy page. */
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
@@ -34,6 +37,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         val roles: RoleStatus = RoleStatus(false, false, false),
         val permissions: Permissions = Permissions(),
         val exportedJson: String? = null,
+        /**
+         * What this device will let the app capture from a call.
+         *
+         * Detected lazily rather than at startup: it opens and releases an audio recorder,
+         * which is not work worth doing on every launch for a screen most users never open.
+         */
+        val recordingCapability: RecordingCapability = RecordingCapability.UNAVAILABLE,
         val message: String? = null,
     ) {
         /** Setup is only genuinely finished once Shield can actually screen a call. */
@@ -67,6 +77,20 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
      * in system settings while the app is in the background and we would otherwise keep
      * showing a stale "not granted".
      */
+    /** Detects what this device allows. Called when the call-recording screen opens. */
+    fun detectRecordingCapability(force: Boolean = false) {
+        viewModelScope.launch {
+            val capability = withContext(Dispatchers.IO) {
+                if (force) {
+                    container.recordingCapabilityManager.redetect()
+                } else {
+                    container.recordingCapabilityManager.capability()
+                }
+            }
+            _state.update { it.copy(recordingCapability = capability) }
+        }
+    }
+
     fun refreshRoles() {
         container.simResolver.invalidate()
         _state.update {
