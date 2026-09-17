@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,7 @@ fun ShieldScreen(
     onOpenAllowlist: () -> Unit,
     onOpenIndiaProtection: () -> Unit,
     onOpenVault: () -> Unit,
+    onOpenRecovery: () -> Unit,
     onOpenTester: () -> Unit,
     onPause: (PauseDuration, SimScope) -> Unit,
     onResume: () -> Unit,
@@ -203,6 +205,13 @@ fun ShieldScreen(
                         subtitle = "${state.blockedCallCount} blocked calls · " +
                             "${state.blockedMessageCount} filtered messages",
                         onClick = onOpenVault,
+                    )
+                    RowDivider()
+                    AppListRow(
+                        title = "Repeated callers",
+                        subtitle = "Act on numbers that call this phone unusually often",
+                        leading = { Icon(Icons.Filled.Repeat, contentDescription = null) },
+                        onClick = onOpenRecovery,
                     )
                     RowDivider()
                     AppListRow(

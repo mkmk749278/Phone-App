@@ -17,8 +17,16 @@ enum class AllowReason(val explanation: String) {
 /**
  * The outcome of evaluating one call against one SIM's rules.
  *
- * There is intentionally no third state: anything that is not a definite [Block] is an
- * [Allow]. That is the fail-open guarantee expressed in the type system.
+ * Three states, and the distinction between the last two matters:
+ *
+ *  - [Allow] — ring normally. Everything uncertain lands here. An unresolved SIM, a
+ *    malformed number, a thrown exception: all allow. That is the fail-open guarantee, and
+ *    it is why no failure path returns anything else.
+ *  - [Block] — reject. Only ever from a positive, deliberate match.
+ *  - [Screen] — silence without rejecting. The call stays reachable in the call log and can
+ *    be returned; it simply does not ring. This is what behavioural signals produce, because
+ *    they are about how someone is calling rather than who they are, and that is not enough
+ *    certainty to refuse a call outright.
  */
 sealed interface ShieldDecision {
 
@@ -31,5 +39,22 @@ sealed interface ShieldDecision {
         val rule: CompiledRule,
     ) : ShieldDecision
 
+    /**
+     * Silence the call.
+     *
+     * [signals] are the observations that led here, in the words the user will see. They
+     * describe behaviour only — never an identity the app cannot verify.
+     */
+    data class Screen(
+        val signals: List<String>,
+    ) : ShieldDecision {
+        val summary: String get() = signals.joinToString(" · ")
+    }
+
     val isBlocked: Boolean get() = this is Block
+
+    val isScreened: Boolean get() = this is Screen
+
+    /** True when the call should not ring, whether it was rejected or merely silenced. */
+    val silencesRinging: Boolean get() = this is Block || this is Screen
 }

@@ -10,6 +10,7 @@ import com.dualshield.phone.data.repository.VaultRepository
 import com.dualshield.phone.data.system.CallLogRepository
 import com.dualshield.phone.data.system.ContactsRepository
 import com.dualshield.phone.data.system.SmsRepository
+import com.dualshield.phone.shield.CallFrequencyStore
 import com.dualshield.phone.shield.ShieldEngine
 import com.dualshield.phone.shield.ShieldNotifier
 import com.dualshield.phone.telecom.CallPlacer
@@ -71,6 +72,11 @@ class AppContainer(
             vaultRepository = vaultRepository,
             contactsRepository = contactsRepository,
             settingsRepository = settingsRepository,
+            frequencyStore = callFrequencyStore,
         )
+    }
+
+    val callFrequencyStore: CallFrequencyStore by lazy {
+        CallFrequencyStore(appContext, scope)
     }
 }
