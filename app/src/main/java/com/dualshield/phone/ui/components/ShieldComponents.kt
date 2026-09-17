@@ -117,9 +117,16 @@ fun SimProtectionCard(
         ) {
             SimSlotBadge(slotIndex = slotIndex)
             Column(modifier = Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.bodyLarge)
+                // An unnamed SIM is named by its slot rather than left as an empty line.
+                // The app does not name the user's lines for them, and a card whose title
+                // is blank looks like a value that failed to load.
+                val named = label.isNotBlank()
                 Text(
-                    text = "SIM ${slotIndex + 1} · $summary",
+                    text = if (named) label else "SIM ${slotIndex + 1}",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = if (named) "SIM ${slotIndex + 1} · $summary" else summary,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -134,9 +141,11 @@ fun SimProtectionCard(
                 onCheckedChange = onToggle,
                 enabled = present,
                 modifier = Modifier.semantics {
-                    contentDescription =
-                        "Protection for SIM ${slotIndex + 1}, $label, " +
-                        if (protectionEnabled) "on" else "off"
+                    contentDescription = buildString {
+                        append("Protection for SIM ${slotIndex + 1}")
+                        if (label.isNotBlank()) append(", $label")
+                        append(if (protectionEnabled) ", on" else ", off")
+                    }
                 },
             )
         }

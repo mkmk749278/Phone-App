@@ -19,6 +19,14 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
+/**
+ * The current per-SIM protection policy, bumped whenever the shipped arrangement changes.
+ *
+ * Stored per install rather than compared against a version name, so a user who skips three
+ * releases is asked once, not once per release they missed.
+ */
+const val CURRENT_SIM_POLICY_VERSION = 1
+
 /** App preferences that are not rules. Stored locally, never synced. */
 data class AppSettings(
     /**
@@ -40,7 +48,26 @@ data class AppSettings(
     val shieldPause: ShieldPause? = null,
     /** Behavioural protection, per SIM slot. Absent means the default: off. */
     val recoveryBySlot: Map<Int, RecoverySettings> = emptyMap(),
+    /**
+     * The per-SIM protection policy this install has been shown, or 0 for none.
+     *
+     * Which line ships filtered changed after release. An install created before that has
+     * profiles already, so the first-run defaults never run again and it keeps the old
+     * arrangement — correctly, because a setting the user may have chosen deliberately is
+     * not the app's to overwrite. This records whether they have been *told*, which is a
+     * different question from what they have set.
+     */
+    val simPolicyAckVersion: Int = 0,
 ) {
+    /**
+     * Whether to ask, once, which line should be protected.
+     *
+     * Only for an install that is already past onboarding: a new one is asked the same
+     * question by Setup, and asking twice would be worse than not asking at all.
+     */
+    val needsSimPolicyReview: Boolean
+        get() = isLoaded && onboardingComplete && simPolicyAckVersion < CURRENT_SIM_POLICY_VERSION
+
     fun recoveryFor(slotIndex: Int): RecoverySettings =
         recoveryBySlot[slotIndex] ?: RecoverySettings.DEFAULT
 }
@@ -63,10 +90,24 @@ class SettingsRepository(private val context: Context) {
                 vaultRetentionDays = prefs[KEY_VAULT_RETENTION] ?: 0,
                 shieldPause = readPause(prefs),
                 recoveryBySlot = readRecovery(prefs),
+                simPolicyAckVersion = prefs[KEY_SIM_POLICY_ACK] ?: 0,
             )
         }
 
-    suspend fun setOnboardingComplete(complete: Boolean) = edit { it[KEY_ONBOARDING] = complete }
+    /**
+     * Marks onboarding finished, and the SIM policy along with it.
+     *
+     * One write, not two: Setup has just asked which lines to protect, so a user coming out
+     * of it must never then be asked the same thing by the upgrade prompt. Doing it in a
+     * separate edit would leave a window where a crash in between produces exactly that.
+     */
+    suspend fun setOnboardingComplete(complete: Boolean) = edit { prefs ->
+        prefs[KEY_ONBOARDING] = complete
+        if (complete) prefs[KEY_SIM_POLICY_ACK] = CURRENT_SIM_POLICY_VERSION
+    }
+
+    /** Records that the user has answered the SIM policy prompt, whichever way. */
+    suspend fun acknowledgeSimPolicy() = edit { it[KEY_SIM_POLICY_ACK] = CURRENT_SIM_POLICY_VERSION }
 
     suspend fun setNotifyOnBlockedCall(enabled: Boolean) = edit { it[KEY_NOTIFY_BLOCKED] = enabled }
 
@@ -146,6 +187,7 @@ class SettingsRepository(private val context: Context) {
         val KEY_VAULT_RETENTION = intPreferencesKey("vault_retention_days")
         val KEY_PAUSE_SCOPE = stringPreferencesKey("shield_pause_scope")
         val KEY_PAUSE_EXPIRY = longPreferencesKey("shield_pause_expires_at")
+        val KEY_SIM_POLICY_ACK = intPreferencesKey("sim_policy_ack_version")
 
         val SUPPORTED_SLOTS = listOf(0, 1)
         const val DEFAULT_FLAGS = "1101"

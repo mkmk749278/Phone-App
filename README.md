@@ -131,11 +131,11 @@ Shipped at `app/src/main/assets/rules/india_rules.json`, versioned and re-import
 
 | Series | Category | Default | Why |
 |---|---|---|---|
-| `140…` | Promotional / telemarketing | **BLOCK** on SIM 2 | The regulated Indian series for marketing calls |
+| `140…` | Promotional / telemarketing | **BLOCK**, both SIMs | The regulated Indian series for marketing calls |
 | `1600…` | Transactional — BFSI / government | **ALLOW** both SIMs | Service and transactional traffic, not marketing |
 | `1601…` | Transactional — other sectors | **ALLOW** both SIMs | Same, for non-BFSI senders |
 | `1800…` | Toll-free | **ALLOW** both SIMs | Usually a company's own support line |
-| `0900…` | Premium-rate | **BLOCK** on SIM 2 | Chargeable premium service series |
+| `0900…` | Premium-rate | **BLOCK**, both SIMs | Chargeable premium service series |
 | BPO / collection digit patterns | Community heuristic | **OFF** | User observations, not a telecom classification |
 | Unknown / private / international | Caller class | **OFF** | Each catches legitimate callers too |
 
@@ -183,16 +183,19 @@ First run is a welcome page and then **Setup**, which is also reachable from Set
 afterwards. It shows live grant status for each permission and role, so a denied prompt is
 visible and fixable instead of leaving the app quietly unable to block anything.
 
-Setup is also where you name each SIM and choose which to protect. The app no longer assumes
-"SIM 1 is the duty line" — that was one person's arrangement baked in as a default.
+Setup is also where you name each SIM and choose which to protect. The app does not name your
+lines for you: an unnamed SIM is shown as "SIM 1" or "SIM 2" until you say otherwise, and the
+labels you choose are the ones that appear everywhere else.
 
 ---
 
 ## Fresh-install defaults
 
+The two lines start deliberately asymmetric — one filtered, one that rings for anything:
+
 ```
-SIM 1 — Duty       Protection OFF      (the duty line is never filtered until you ask)
-SIM 2 — Personal   Protection ON
+SIM 1   Protection ON       (the line the rules apply to)
+SIM 2   Protection OFF      (rings for everything, including unknown numbers)
 
   140 Promotional            BLOCK
   0900 Premium-rate          BLOCK
@@ -205,8 +208,27 @@ SIM 2 — Personal   Protection ON
   VoIP / cloud heuristic     not shipped
 ```
 
-`BundledIndiaPackTest` asserts all of this against the file that actually ships, so an edit
-to the JSON cannot quietly change what a fresh install does.
+Which slot starts protected is one function, `SimRepository.defaultFilteringForSlot`, and
+nothing else states it. Either line can be switched at any time; switching one never touches
+the other, and turning a line off keeps its rules exactly as saved rather than deleting them.
+
+Only a first run is affected. An install that already has SIM profiles keeps whatever was
+chosen on it, including a choice made under an earlier version's defaults — the app will not
+silently re-decide which of your lines is filtered.
+
+Because that means an upgrade can sit on the *old* arrangement indefinitely, the first launch
+after the policy changed asks once. It states what now ships, shows what this phone is
+currently set to, and changes nothing until the user answers; "Keep current settings" is a
+real answer and is recorded as one, so the question is asked exactly once either way. A new
+install never sees it — Setup asks the same question properly.
+
+Every pack rule is scoped to both SIMs, because a numbering series describes the caller, not
+the line. What decides whether it is enforced is the per-SIM protection switch.
+
+`BundledIndiaPackTest` asserts all of this against the file that actually ships, including
+that at least one enabled block rule covers the slot that ships protected — the pack was once
+scoped entirely to the *other* slot, which meant a fresh install parsed 38 rules and blocked
+nothing.
 
 ---
 

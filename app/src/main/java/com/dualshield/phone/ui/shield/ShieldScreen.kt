@@ -187,10 +187,19 @@ fun ShieldScreen(
                     slotIndex = sim.slotIndex,
                     label = sim.label,
                     protectionEnabled = sim.protectionEnabled,
-                    summary = if (sim.protectionEnabled) {
-                        "${state.rulesForSlot(sim.slotIndex).count { it.enabled }} active rules"
-                    } else {
-                        "Not filtered"
+                    // An unprotected SIM says so in words, not just by a switch position.
+                    // The two lines are deliberately asymmetric, and a user glancing at this
+                    // screen must not read "SIM 2" as protected when nothing is being
+                    // filtered on it. The saved rules are named too, so it is clear they
+                    // still exist and are simply not being enforced.
+                    summary = when {
+                        sim.protectionEnabled ->
+                            "Protected · " +
+                                "${state.rulesForSlot(sim.slotIndex).count { it.enabled }} " +
+                                "active rules"
+                        state.rulesForSlot(sim.slotIndex).any { it.enabled } ->
+                            "Unprotected · rules saved but not enforced"
+                        else -> "Unprotected · Shield is off for this SIM"
                     },
                     present = sim.present,
                     onToggle = { onToggleSim(sim.slotIndex, it) },

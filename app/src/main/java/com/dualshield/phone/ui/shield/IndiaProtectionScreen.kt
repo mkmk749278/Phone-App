@@ -51,6 +51,7 @@ fun IndiaProtectionScreen(
     val scoped = selectedSlot
         ?.let { slot -> rules.filter { it.simScope.coversSlot(slot) } }
         ?: rules
+    val selected = selectedSlot?.let { slot -> sims.firstOrNull { it.slotIndex == slot } }
 
     // Exactly one bucket per rule. Three independent filters would let a rule land in two
     // sections of the same lazy list, and a duplicate key there is a crash, not a cosmetic
@@ -101,6 +102,20 @@ fun IndiaProtectionScreen(
                 VerticalSpacer(8.dp)
                 SimChipRow(options = sims, selectedSlot = selectedSlot, onSelect = onSelectSlot)
                 VerticalSpacer(14.dp)
+            }
+
+            // Every switch below is per-SIM, and this screen is the easiest place in the app
+            // to read a row of "on" toggles as protection. Say otherwise when it is otherwise.
+            if (selected != null && !selected.protectionEnabled) {
+                item(key = "protection-off") {
+                    ProtectionOffNotice(
+                        sim = selected,
+                        detail = "These built-in rules stay as you set them, but nothing on " +
+                            "this screen is applied to calls on ${selected.display} until " +
+                            "protection is turned on for it.",
+                    )
+                    VerticalSpacer(14.dp)
+                }
             }
 
             if (official.isNotEmpty()) {
