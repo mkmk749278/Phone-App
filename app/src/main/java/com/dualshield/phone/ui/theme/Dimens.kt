@@ -93,6 +93,14 @@ object Sizes {
     val rowIcon = 24.dp
 
     /**
+     * Icon inside a button that also carries a label.
+     *
+     * Smaller than [rowIcon]: a button's width is shared with its text, and the default
+     * 24dp icon is what pushed "SIM 1 · Personal" past the edge of a half-width button.
+     */
+    val buttonIcon = 18.dp
+
+    /**
      * Where a list row's divider starts.
      *
      * Derived rather than typed, so it stays aligned with the row's text when the gutter,

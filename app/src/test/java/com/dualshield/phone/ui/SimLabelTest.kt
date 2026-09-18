@@ -6,6 +6,7 @@ import com.dualshield.phone.ui.components.displayForSlot
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -125,5 +126,22 @@ class SimLabelTest {
                 text.contains("slotName")
             assertTrue("$name shows SIM context but resolves no label", resolvesSims)
         }
+    }
+
+    @Test
+    fun `an avatar never claims to identify someone by their country code`() {
+        // "919" was the monogram for every Indian mobile in the recording's Contacts list:
+        // a column of identical circles, each standing for a different person.
+        assertNull(Formatting.initials(null, "+919398679480"))
+        assertNull(Formatting.initials("", "+919398679480"))
+        assertNull(Formatting.initials("+91 93986 79480", "+919398679480"))
+        assertNull(Formatting.initials("06303114934", "06303114934"))
+    }
+
+    @Test
+    fun `a real name still gets its monogram`() {
+        assertEquals("KK", Formatting.initials("Kishore Kumar"))
+        assertEquals("AR", Formatting.initials("A.RAVI PC-830"))
+        assertEquals("MU", Formatting.initials("Mum"))
     }
 }

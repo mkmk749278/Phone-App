@@ -206,12 +206,22 @@ object PhoneNumberNormalizer {
     private fun senderIdOf(source: String): String? {
         if (source.none { it.isLetter() }) return null
         val cleaned = source.uppercase().filter { it.isLetterOrDigit() || it == '-' || it == '_' }
-        val token = cleaned
-            .split('-', '_')
-            .lastOrNull { it.isNotBlank() }
-            ?: return null
-        // A bare route prefix on its own ("VM-") leaves nothing meaningful behind.
-        return token.takeIf { it.any(Char::isLetter) }
+        val tokens = cleaned.split('-', '_').filter { it.isNotBlank() && it.any(Char::isLetter) }
+        if (tokens.isEmpty()) return null
+
+        // The token with the most letters is the sender. Taking the *last* token was wrong,
+        // and wrong in the worst way: it worked on the old two-part form (`VM-AXISBK`) and
+        // silently destroyed the new three-part one. TRAI headers now carry a content
+        // category as a final single letter — `AX-SBIINB-S` for service, `-T`
+        // transactional, `-P` promotional, `-G` government — so every bank, operator and
+        // government message in the list was titled `S`, `T`, `P` or `G`.
+        //
+        // Choosing by letter count rather than by position handles both forms without
+        // needing a list of route prefixes or category letters to keep up to date: a
+        // two-letter route prefix and a one-letter category can never outweigh the name
+        // itself. On a tie the later token wins, since the route prefix comes first.
+        return tokens.maxByOrNull { token -> token.count(Char::isLetter) * 100 + token.length }
+            ?.let { best -> tokens.last { it.count(Char::isLetter) == best.count(Char::isLetter) } }
     }
 
     private fun isWithheldMarker(source: String): Boolean {

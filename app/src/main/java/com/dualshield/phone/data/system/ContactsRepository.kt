@@ -36,17 +36,30 @@ data class Contact(
     val phoneNumbers: List<ContactNumber>,
     val photoUri: String?,
     val starred: Boolean,
-    /**
-     * Whether [displayName] is a name the user actually gave this contact.
-     *
-     * A contact saved with no name falls back to showing its number as its name, which is
-     * the right thing for a list of people — but a screen that then prints the number
-     * underneath it too shows the same digits twice, one above the other, and reads as two
-     * duplicate entries rather than one unnamed contact.
-     */
-    val hasName: Boolean,
 ) {
     val primaryNumber: String? get() = phoneNumbers.firstOrNull()?.raw
+
+    /**
+     * Whether [displayName] is a name, as opposed to the contact's own number wearing one.
+     *
+     * A contact saved without a name does not arrive with an empty name: ContactsContract
+     * fills `DISPLAY_NAME_PRIMARY` in with the number itself. So asking the provider whether
+     * the name column was empty always answered yes, and the row printed the number as its
+     * title and again as its subtitle — the same digits twice, one line above the other,
+     * which is what reads as a duplicate entry.
+     *
+     * The test is therefore about the value, not about which column it came from: anything
+     * containing a letter is a name, and digits that resolve to one of this contact's own
+     * numbers are not. Someone genuinely saved under their own phone number is treated as
+     * unnamed, which costs them a "Mobile" where a repeated number used to be.
+     */
+    val hasName: Boolean
+        get() {
+            if (displayName.isBlank()) return false
+            if (displayName.any(Char::isLetter)) return true
+            val nameKey = PhoneNumberFormatter.matchKey(displayName)
+            return nameKey.isEmpty() || phoneNumbers.none { it.matchKey == nameKey }
+        }
 }
 
 /** The identity bits every surface needs when it has a number and wants a person. */
@@ -189,7 +202,6 @@ class ContactsRepository(private val context: Context) {
                             phoneNumbers = listOf(number),
                             photoUri = cursor.getString(photoIdx),
                             starred = cursor.getInt(starredIdx) == 1,
-                            hasName = !cursor.getString(nameIdx)?.trim().isNullOrEmpty(),
                         )
                     } else if (existing.phoneNumbers.none { it.sameNumberAs(number) }) {
                         // Same person, genuinely different line. A second *spelling* of a line
@@ -200,8 +212,10 @@ class ContactsRepository(private val context: Context) {
                 }
             }
         }
-        byId.values.toList()
+        collapseNamelessDuplicates(byId.values.toList())
     }
+
+
 
     /**
      * Two numbers are the same line when their canonical keys agree.
@@ -284,4 +298,41 @@ class ContactsRepository(private val context: Context) {
 
     /** The comparison key used by [buildIndex]; also handy for matching a single number. */
     fun matchKey(number: String?): String = PhoneNumberFormatter.matchKey(number)
+}
+
+/**
+ * Collapses unnamed contacts that are the same number.
+ *
+ * The address book genuinely holds several records for one number — a SIM copy, a Google
+ * copy, one left behind by a messaging app — and when none of them has a name, every one
+ * of them renders as the same digits. There is nothing on screen to tell them apart and
+ * no reason for the user to care which is which.
+ *
+ * Named contacts are never merged, however much they share. "Mum" and "Mum work" on one
+ * number are two things the user deliberately wrote down, and collapsing them would lose
+ * a distinction only they can make.
+ */
+internal fun collapseNamelessDuplicates(contacts: List<Contact>): List<Contact> {
+    val seenNameless = HashMap<String, Int>()
+    val result = ArrayList<Contact>(contacts.size)
+    for (contact in contacts) {
+        val key = contact.phoneNumbers.firstOrNull()?.matchKey.orEmpty()
+        if (contact.hasName || key.isEmpty()) {
+            result += contact
+            continue
+        }
+        val existingIndex = seenNameless[key]
+        if (existingIndex == null) {
+            seenNameless[key] = result.size
+            result += contact
+        } else {
+            // Keep whichever copy carries more: a photo is the only thing that
+            // distinguishes two otherwise identical rows, so it decides.
+            val kept = result[existingIndex]
+            if (kept.photoUri.isNullOrBlank() && !contact.photoUri.isNullOrBlank()) {
+                result[existingIndex] = kept.copy(photoUri = contact.photoUri)
+            }
+        }
+    }
+    return result
 }
