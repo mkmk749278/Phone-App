@@ -75,7 +75,7 @@ class NavigationReachabilityTest {
         val graph = navHost().readText()
         val settingsBlock = graph.substring(
             graph.indexOf("SettingsScreen("),
-            graph.indexOf("composable(Routes.CALL_RECORDING)"),
+            graph.indexOf("screen(Routes.CALL_RECORDING)"),
         )
         listOf("BLOCKED_NUMBERS", "INDIA_PROTECTION", "RECOVERY_PROTECTION", "VAULT", "SHIELD")
             .forEach { route ->
@@ -101,5 +101,69 @@ class NavigationReachabilityTest {
         assertTrue("Shield must list the SIMs", simCards > 0)
         assertTrue("and the rule lists", blocking > 0)
         assertTrue("SIM state must come before the rule lists", simCards < blocking)
+    }
+
+    @Test
+    fun `no destination fades during a transition`() {
+        // The ghosting defect, stated as a rule. Compose Navigation animates two
+        // destinations at once; fading either one makes it translucent, and a translucent
+        // screen on top of the one it is replacing lets both be read at the same time.
+        //
+        // The opaque background on the NavHost is no defence: it sits underneath *both* of
+        // them. Only the screen on top being opaque prevents this, so nothing may fade.
+        val graph = navHost().readText()
+        val transitions = graph.substring(
+            graph.indexOf("enterTransition"),
+            graph.indexOf("popExitTransition") + 400,
+        )
+        listOf("fadeIn", "fadeOut", "Crossfade").forEach { fade ->
+            assertFalse(
+                "A navigation transition must not use $fade: a half-transparent screen " +
+                    "shows the one it is replacing straight through it",
+                transitions.contains(fade),
+            )
+        }
+    }
+
+    @Test
+    fun `every destination draws its own opaque surface`() {
+        // Relying on each screen's Scaffold to carry a background is how one of them ends up
+        // without one. The wrapper makes it structural.
+        val graph = navHost().readText()
+        assertTrue(
+            "destinations must be declared through the opaque screen() wrapper",
+            graph.contains("private fun NavGraphBuilder.screen("),
+        )
+        assertTrue(
+            "and that wrapper must actually fill a background",
+            graph.substringAfter("private fun NavGraphBuilder.screen(")
+                .contains("background(MaterialTheme.colorScheme.background)"),
+        )
+
+        // No destination may bypass it.
+        val raw = graph.lines().withIndex().filter { (_, line) ->
+            line.trimStart().startsWith("composable(") && line.contains("Routes.")
+        }
+        assertEquals(
+            "These destinations bypass screen() and animate without a background of their own",
+            emptyList<String>(),
+            raw.map { (i, line) -> "${i + 1}: ${line.trim()}" },
+        )
+    }
+
+    @Test
+    fun `the arriving screen travels the full width`() {
+        // A screen that starts most of the way on has to fade in to avoid appearing from
+        // nowhere, and that fade is the defect. Arriving from off-screen needs no fade.
+        val graph = navHost().readText()
+        val enter = graph.substring(
+            graph.indexOf("enterTransition"),
+            graph.indexOf("exitTransition"),
+        )
+        assertTrue(
+            "the entering screen must slide the whole width, not a fraction of it",
+            enter.contains("{ width -> width }"),
+        )
+        assertFalse("and must not start partway on", enter.contains("DEPTH_DIVISOR"))
     }
 }

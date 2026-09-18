@@ -1,5 +1,6 @@
 package com.dualshield.phone.ui.shield
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,12 +8,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -28,6 +38,7 @@ import com.dualshield.phone.ui.components.SimChipRow
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.components.groupedItems
+import com.dualshield.phone.ui.theme.Sizes
 import com.dualshield.phone.ui.theme.Spacing
 
 /**
@@ -178,17 +189,41 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
     }
 }
 
+/**
+ * One built-in rule, as two lines until you ask for more.
+ *
+ * Every rule in this pack carries a paragraph explaining where the series comes from and
+ * why the classification is or is not official. Shown on every row at once, forty of them
+ * turn the screen into half a minute of scrolling through near-identical text, and the one
+ * you are looking for is no easier to find for all of it.
+ *
+ * The paragraph has not gone anywhere: it is what the row opens to. Collapsed, the row
+ * answers "what is this and is it on"; expanded, it answers "says who". The provenance
+ * badge is part of the answer to the second question, so it moves with the paragraph.
+ */
 @Composable
 private fun IndiaRuleRow(
     rule: CallRuleEntity,
     onToggleRule: (Long, Boolean) -> Unit,
     onOpenRule: (Long) -> Unit,
 ) {
+    var expanded by rememberSaveable(rule.stableId) { mutableStateOf(false) }
+    val canExpand = rule.description.isNotBlank()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (canExpand) {
+                    Modifier.clickable(
+                        onClickLabel = if (expanded) "Hide details" else "About this rule",
+                    ) { expanded = !expanded }
+                } else {
+                    Modifier
+                },
+            )
             .padding(horizontal = Spacing.rowPaddingH, vertical = Spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -196,21 +231,38 @@ private fun IndiaRuleRow(
             // so the row needs no second line repeating the pattern. What it did carry was
             // the raw expression, which said nothing to anyone who had not written it.
             Text(rule.name, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = RuleDisplay.status(rule),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (rule.description.isNotBlank()) {
-                VerticalSpacer(Spacing.xs)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                Text(
+                    text = RuleDisplay.status(rule),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (canExpand) {
+                    Icon(
+                        imageVector = if (expanded) {
+                            Icons.Filled.ExpandLess
+                        } else {
+                            Icons.Filled.ExpandMore
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(Sizes.rowIcon),
+                    )
+                }
+            }
+            if (expanded && canExpand) {
+                VerticalSpacer(Spacing.sm)
                 Text(
                     text = rule.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                VerticalSpacer(Spacing.sm)
+                ConfidenceBadge(confidence = rule.confidence, provenance = rule.provenance)
             }
-            VerticalSpacer(Spacing.sm)
-            ConfidenceBadge(confidence = rule.confidence, provenance = rule.provenance)
         }
         Switch(
             checked = rule.enabled,

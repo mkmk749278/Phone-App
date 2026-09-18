@@ -1,6 +1,7 @@
 package com.dualshield.phone.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -185,7 +186,22 @@ fun DualShieldApp(
             }
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // Twenty-odd screens each carry their own Scaffold, and a Scaffold applies the
+        // window insets by default. This one has already applied them — that is what
+        // `padding` is — so without telling the children so, every screen in the app adds
+        // the status-bar inset a second time. That is where the "excessive vertical
+        // whitespace" in two rounds of review came from: a status bar's worth of dead space
+        // above the content of every single screen, which reads as sloppy spacing rather
+        // than as the layout bug it is.
+        //
+        // consumeWindowInsets says the insets in `padding` are accounted for, so a nested
+        // Scaffold resolves its own to zero.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding),
+        ) {
             DualShieldNavHost(
                 navController = navController,
                 startDestination = if (settingsState.settings.onboardingComplete) {

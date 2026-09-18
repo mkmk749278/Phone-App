@@ -153,6 +153,34 @@ kind of test that was looking:
 
 Each now has a test, and each test fails when the fix is reverted.
 
+## Found in the second recording (2026-09-18, 07:03)
+
+Three more, and two of them explain complaints that had survived every previous round:
+
+| What showed on screen | Cause |
+|---|---|
+| Two screens readable at once during navigation | Both destinations were faded, so whichever was on top was translucent. The opaque background under the graph was no help — it sits underneath *both*. |
+| "Excessive vertical whitespace" on every screen | The status-bar inset was applied twice: once by the app shell, again by each screen's own Scaffold. A whole status bar of dead space above every screen. |
+| Half a minute of scrolling identical text in the India blocklist | Every rule showed its full provenance paragraph inline, on all forty. |
+
+The whitespace one is worth dwelling on: it was reported as a spacing preference three
+times across two reviews, and it was a layout bug the entire time. Padding numbers were
+never going to fix it.
+
+### Already fixed, if a future review reports them again
+
+These were real in the first recording and are fixed. If they reappear, it is a regression,
+not the original defect:
+
+- `SIM 1 ·` / `SIM 2 ·` with a dangling separator — fixed; the second recording shows
+  `SIM 1 · Personal` and `SIM 2 · Duty` correctly on Call details, the action sheet and the
+  dial pad.
+- Raw regular expressions in the India blocklist — fixed; no expression appears anywhere in
+  the second recording.
+- Single-letter message senders — fixed; the second recording shows `AXISBK`, `KOTAKB`,
+  `SBICRD`, `TGSPDC` and the rest.
+- Contacts showing a number as both title and subtitle — fixed.
+
 ## What a unit test already covers
 
 Do not spend review time on these; they fail the build if they regress.

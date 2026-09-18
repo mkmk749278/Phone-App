@@ -183,4 +183,23 @@ class DesignSystemTest {
             offenders,
         )
     }
+
+    @Test
+    fun `window insets are applied once, not once per Scaffold`() {
+        // Twenty screens carry their own Scaffold, and a Scaffold applies the window insets
+        // by default. The app shell applies them too, so without consuming them the status
+        // bar's height is added twice on every screen — a band of dead space that reads as
+        // bad spacing rather than as the layout bug it is. It survived two rounds of review
+        // being described as "excessive vertical whitespace".
+        val shell = listOf(
+            File("src/main/java/com/dualshield/phone/ui/DualShieldApp.kt"),
+            File("app/src/main/java/com/dualshield/phone/ui/DualShieldApp.kt"),
+        ).first { it.exists() }.readText()
+
+        assertTrue(
+            "the app shell must consume the insets it has already applied, or every " +
+                "nested Scaffold applies them again",
+            shell.contains("consumeWindowInsets(padding)"),
+        )
+    }
 }
