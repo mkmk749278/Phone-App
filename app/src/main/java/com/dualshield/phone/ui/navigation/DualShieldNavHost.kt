@@ -4,11 +4,10 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -19,8 +18,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
-import androidx.navigation.NavBackStackEntry
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -66,15 +67,18 @@ import com.dualshield.phone.ui.shield.patternType
 private const val TRANSITION_MS = 190
 
 /**
- * How far a screen slides in, as a fraction of the width.
+ * How far the *outgoing* screen shifts, as a fraction of the width.
  *
- * A partial slide rather than a full one: the incoming screen is already opaque, so a short
- * move reads as depth without the whole display sweeping sideways.
+ * Only the outgoing one. The arriving screen travels the whole width, because a screen that
+ * starts most of the way onto the display has to fade in to avoid appearing from nowhere —
+ * and it was that fade, over a screen it did not cover, that let both be read at once.
+ *
+ * This constant's own documentation used to assert "the incoming screen is already opaque".
+ * It was not: its alpha was being animated three lines below.
  */
 private const val DEPTH_DIVISOR = 6
 
 private val TRANSITION_SPEC = tween<IntOffset>(durationMillis = TRANSITION_MS)
-private val FADE_SPEC = tween<Float>(durationMillis = TRANSITION_MS)
 
 /**
  * True when this transition is between two of the bottom-navigation tabs.
@@ -112,41 +116,48 @@ fun DualShieldNavHost(
         // Switching tabs is immediate: a tab bar is a place selector, and animating it makes
         // the app feel slower than the tap. Everything else gets one controlled horizontal
         // push, so forward and back read as depth rather than as a dissolve.
+        // A push, not a dissolve.
+        //
+        // The entering screen slides the full width of the display and does not fade. Both
+        // halves of that matter, and the previous version got both wrong: it faded the
+        // arriving screen in while sliding it only a fraction of the width, so for the
+        // length of the animation a half-transparent screen sat on top of the one it was
+        // replacing and you could read both at once. The opaque background below is no help
+        // against that — it is underneath *both* of them.
+        //
+        // Nothing fades now, so whichever screen is on top is opaque and occludes what is
+        // behind it. The outgoing screen shifts a little, which reads as depth.
         enterTransition = {
             if (isTabSwitch()) {
                 EnterTransition.None
             } else {
-                slideInHorizontally(TRANSITION_SPEC) { width -> width / DEPTH_DIVISOR } +
-                    fadeIn(FADE_SPEC)
+                slideInHorizontally(TRANSITION_SPEC) { width -> width }
             }
         },
         exitTransition = {
             if (isTabSwitch()) {
                 ExitTransition.None
             } else {
-                slideOutHorizontally(TRANSITION_SPEC) { width -> -width / DEPTH_DIVISOR } +
-                    fadeOut(FADE_SPEC)
+                slideOutHorizontally(TRANSITION_SPEC) { width -> -width / DEPTH_DIVISOR }
             }
         },
         popEnterTransition = {
             if (isTabSwitch()) {
                 EnterTransition.None
             } else {
-                slideInHorizontally(TRANSITION_SPEC) { width -> -width / DEPTH_DIVISOR } +
-                    fadeIn(FADE_SPEC)
+                slideInHorizontally(TRANSITION_SPEC) { width -> -width / DEPTH_DIVISOR }
             }
         },
         popExitTransition = {
             if (isTabSwitch()) {
                 ExitTransition.None
             } else {
-                slideOutHorizontally(TRANSITION_SPEC) { width -> width / DEPTH_DIVISOR } +
-                    fadeOut(FADE_SPEC)
+                slideOutHorizontally(TRANSITION_SPEC) { width -> width }
             }
         },
     ) {
 
-        composable(Routes.ONBOARDING) {
+        screen(Routes.ONBOARDING) {
             OnboardingScreen(
                 onContinue = { navController.navigate(Routes.setup(first = true)) },
                 onSkip = {
@@ -158,7 +169,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.SETUP,
             arguments = listOf(
                 navArgument("first") {
@@ -209,7 +220,7 @@ fun DualShieldNavHost(
 
         // ---------------------------------------------------------------- Phone
 
-        composable(Routes.PHONE) {
+        screen(Routes.PHONE) {
             val state by phoneViewModel.state.collectAsStateWithLifecycle()
             val recents by phoneViewModel.filteredRecents.collectAsStateWithLifecycle()
             // The row that was tapped, if any. Held here rather than inside the list so the
@@ -261,7 +272,7 @@ fun DualShieldNavHost(
             }
         }
 
-        composable(Routes.DIALPAD) {
+        screen(Routes.DIALPAD) {
             val state by phoneViewModel.state.collectAsStateWithLifecycle()
             val suggestions by phoneViewModel.dialSuggestions.collectAsStateWithLifecycle()
             DialpadScreen(
@@ -278,7 +289,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.CALL_DETAILS,
             arguments = listOf(navArgument("number") { type = NavType.StringType }),
         ) { entry ->
@@ -308,7 +319,7 @@ fun DualShieldNavHost(
 
         // ---------------------------------------------------------------- Messages
 
-        composable(Routes.MESSAGES) {
+        screen(Routes.MESSAGES) {
             val state by messagesViewModel.state.collectAsStateWithLifecycle()
             val threads by messagesViewModel.filteredThreads.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) { messagesViewModel.refreshIfStale() }
@@ -324,7 +335,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.CONVERSATION,
             arguments = listOf(
                 navArgument("threadId") { type = NavType.LongType },
@@ -345,7 +356,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.NEW_MESSAGE) {
+        screen(Routes.NEW_MESSAGE) {
             ConversationRoute(
                 threadId = -1L,
                 address = "",
@@ -359,7 +370,7 @@ fun DualShieldNavHost(
 
         // ---------------------------------------------------------------- Contacts
 
-        composable(Routes.CONTACTS) {
+        screen(Routes.CONTACTS) {
             val state by contactsViewModel.state.collectAsStateWithLifecycle()
             val contacts by contactsViewModel.visibleContacts.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) { contactsViewModel.refreshIfStale() }
@@ -373,7 +384,7 @@ fun DualShieldNavHost(
 
         // ---------------------------------------------------------------- Shield
 
-        composable(Routes.SHIELD) {
+        screen(Routes.SHIELD) {
             val state by shieldViewModel.state.collectAsStateWithLifecycle()
             ShieldScreen(
                 state = state,
@@ -391,7 +402,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.RECOVERY_PROTECTION) {
+        screen(Routes.RECOVERY_PROTECTION) {
             val state by shieldViewModel.state.collectAsStateWithLifecycle()
             val slot by shieldViewModel.recoverySlot.collectAsStateWithLifecycle()
             RecoveryProtectionScreen(
@@ -406,7 +417,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.BLOCKED_NUMBERS) {
+        screen(Routes.BLOCKED_NUMBERS) {
             val state by shieldViewModel.state.collectAsStateWithLifecycle()
             BlockedNumbersScreen(
                 rules = state.userRules,
@@ -429,7 +440,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.INDIA_PROTECTION) {
+        screen(Routes.INDIA_PROTECTION) {
             val state by shieldViewModel.state.collectAsStateWithLifecycle()
             val slot by shieldViewModel.indiaSlot.collectAsStateWithLifecycle()
             IndiaProtectionScreen(
@@ -443,7 +454,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.SHIELD_SIM,
             arguments = listOf(navArgument("slot") { type = NavType.IntType }),
         ) { entry ->
@@ -469,7 +480,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.SHIELD_RULE_NEW,
             arguments = listOf(
                 navArgument("scope") {
@@ -500,7 +511,7 @@ fun DualShieldNavHost(
             RuleEditorRoute(shieldViewModel) { navController.popBackStack() }
         }
 
-        composable(
+        screen(
             route = Routes.SHIELD_RULE,
             arguments = listOf(navArgument("ruleId") { type = NavType.LongType }),
         ) { entry ->
@@ -509,7 +520,7 @@ fun DualShieldNavHost(
             RuleEditorRoute(shieldViewModel) { navController.popBackStack() }
         }
 
-        composable(Routes.SHIELD_TEST) {
+        screen(Routes.SHIELD_TEST) {
             val state by shieldViewModel.state.collectAsStateWithLifecycle()
             val tester by shieldViewModel.tester.collectAsStateWithLifecycle()
             RuleTesterScreen(
@@ -522,7 +533,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.VAULT) {
+        screen(Routes.VAULT) {
             val state by vaultViewModel.state.collectAsStateWithLifecycle()
             VaultScreen(
                 state = state,
@@ -532,7 +543,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.VAULT_DETAIL,
             arguments = listOf(navArgument("id") { type = NavType.LongType }),
         ) { entry ->
@@ -552,7 +563,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(
+        screen(
             route = Routes.ALLOWLIST,
             arguments = listOf(
                 navArgument("slot") {
@@ -574,7 +585,7 @@ fun DualShieldNavHost(
 
         // ---------------------------------------------------------------- Settings
 
-        composable(Routes.SETTINGS) {
+        screen(Routes.SETTINGS) {
             val state by settingsViewModel.state.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) { settingsViewModel.refreshRoles() }
             SettingsScreen(
@@ -596,7 +607,7 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.CALL_RECORDING) {
+        screen(Routes.CALL_RECORDING) {
             val state by settingsViewModel.state.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) { settingsViewModel.detectRecordingCapability() }
             CallRecordingScreen(
@@ -606,11 +617,11 @@ fun DualShieldNavHost(
             )
         }
 
-        composable(Routes.PRIVACY) {
+        screen(Routes.PRIVACY) {
             PrivacyScreen(onBack = { navController.popBackStack() })
         }
 
-        composable(Routes.RULE_PACKS) {
+        screen(Routes.RULE_PACKS) {
             val state by settingsViewModel.state.collectAsStateWithLifecycle()
             RulePacksScreen(
                 state = state,
@@ -679,4 +690,30 @@ private fun RuleEditorRoute(
         onTest = shieldViewModel::testDraft,
         onSave = shieldViewModel::saveDraft,
     )
+}
+
+/**
+ * A destination that is opaque while it animates.
+ *
+ * Compose Navigation animates two destinations at once, and neither one owns the pixels it
+ * is drawn over. A screen whose own background is missing — or whose alpha is being
+ * animated — lets the screen it is replacing show straight through it. That is the
+ * "ghosting" a reviewer sees, and no unit test can catch it.
+ *
+ * Giving every destination its own filled surface makes it impossible by construction
+ * rather than relying on each screen's Scaffold to remember. It costs one draw of a solid
+ * colour per frame of the animation.
+ */
+private fun NavGraphBuilder.screen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable (NavBackStackEntry) -> Unit,
+) = composable(route = route, arguments = arguments) { entry ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        content(entry)
+    }
 }
