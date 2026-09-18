@@ -138,6 +138,21 @@ Nothing should overlap, clip, disappear, become unreachable, or leave a large de
 
 ---
 
+## Found in the first recording (2026-09-18)
+
+Four defects came out of the first review pass, none of which any test had caught, and all
+four are fixed. Worth knowing what they were, because three of them were invisible to the
+kind of test that was looking:
+
+| What showed on screen | Why no test saw it |
+|---|---|
+| Every bank and operator message titled `S`, `T`, `P` or `G` | The sender-ID rule was right for the old two-part header and silently wrong for the current three-part one. Nothing asserted a sender is longer than a letter. |
+| `SIM 1 ·` on the Call details buttons, with empty space after it | The *string* was correct. A single line that cannot fit drops the last whole word, so "Personal" vanished at layout time. |
+| The same number as a contact's title and its subtitle | The provider fills the name column in with the number, so "was the name empty?" always answered no. |
+| `919` as the avatar for every Indian mobile | Nothing said a monogram has to distinguish anyone. |
+
+Each now has a test, and each test fails when the fix is reverted.
+
 ## What a unit test already covers
 
 Do not spend review time on these; they fail the build if they regress.

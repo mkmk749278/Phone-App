@@ -2,10 +2,12 @@ package com.dualshield.phone.ui.phone
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dualshield.phone.core.model.SimScope
 import com.dualshield.phone.core.number.PhoneNumberFormatter
@@ -43,6 +46,7 @@ import com.dualshield.phone.ui.components.SectionCard
 import com.dualshield.phone.ui.components.SimOption
 import com.dualshield.phone.ui.components.VerticalSpacer
 import com.dualshield.phone.ui.shield.ScopeChoiceDialog
+import com.dualshield.phone.ui.theme.Sizes
 import com.dualshield.phone.ui.theme.Spacing
 
 /**
@@ -126,9 +130,28 @@ fun CallDetailsScreen(
                         FilledTonalButton(
                             onClick = { onCall(number, sim.slotIndex) },
                             modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = Spacing.md),
                         ) {
-                            Icon(Icons.Filled.Call, contentDescription = null)
-                            Text("  ${sim.display}", maxLines = 1)
+                            Icon(
+                                imageVector = Icons.Filled.Call,
+                                contentDescription = null,
+                                modifier = Modifier.size(Sizes.buttonIcon),
+                            )
+                            // softWrap is off deliberately. With it on, a single line that
+                            // cannot fit the whole label drops the last *word* rather than
+                            // clipping mid-word — so "SIM 1 · Personal" rendered as
+                            // "SIM 1 ·", a dangling separator with empty space after it,
+                            // which looks exactly like a SIM whose label failed to load.
+                            // Off, the text runs to the edge and ellipsizes, so a label
+                            // that does not fit still says so.
+                            Text(
+                                text = sim.display,
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = Spacing.sm),
+                            )
                         }
                     }
                 }

@@ -80,18 +80,22 @@ object Formatting {
      */
     fun displayNumber(raw: String?): String = PhoneNumberFormatter.display(raw)
 
-    /** The two-or-three letter monogram used on every avatar. */
-    fun initials(name: String?, fallbackNumber: String?): String {
+    /**
+     * The monogram for an avatar, or null when there is no name to make one from.
+     *
+     * Null rather than a shrug: the caller draws a person glyph instead. This used to fall
+     * back to the first three digits of the number, which is "919" for every Indian mobile
+     * — a whole column of identical circles, each claiming to identify someone different.
+     */
+    fun initials(name: String?, @Suppress("UNUSED_PARAMETER") fallbackNumber: String? = null): String? {
         val trimmed = name?.trim().orEmpty()
-        if (trimmed.isNotEmpty() && trimmed.any { it.isLetter() }) {
-            val parts = trimmed.split(' ', '.', '-').filter { it.isNotBlank() }
-            return when {
-                parts.size >= 2 -> "${parts[0].first()}${parts[1].first()}".uppercase()
-                else -> parts.first().take(2).uppercase()
-            }
+        if (trimmed.isEmpty() || trimmed.none { it.isLetter() }) return null
+        val parts = trimmed.split(' ', '.', '-').filter { it.isNotBlank() && it.any(Char::isLetter) }
+        if (parts.isEmpty()) return null
+        return when {
+            parts.size >= 2 -> "${parts[0].first()}${parts[1].first()}".uppercase()
+            else -> parts.first().take(2).uppercase()
         }
-        val digits = fallbackNumber?.filter { it.isDigit() }.orEmpty()
-        return digits.take(3).ifEmpty { "?" }
     }
 
     /**

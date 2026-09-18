@@ -53,7 +53,6 @@ class DialerIndexTest {
         phoneNumbers = numbers.map(::number),
         photoUri = null,
         starred = false,
-        hasName = true,
     )
 
     private val index = DialerIndex.build(

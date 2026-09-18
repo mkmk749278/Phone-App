@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -99,11 +100,24 @@ fun ContactAvatar(
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = Formatting.initials(name, number),
-            style = MaterialTheme.typography.labelLarge,
-            color = contentColor,
-        )
+        // Initials when there is a name; a person glyph when there is not. The fallback
+        // used to be the first three digits of the number, which is "919" for every Indian
+        // mobile ever saved — a column of identical circles that says nothing about anyone.
+        val initials = Formatting.initials(name, number)
+        if (initials != null) {
+            Text(
+                text = initials,
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.Person,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(size * 0.55f),
+            )
+        }
 
         // The photo is drawn over the monogram rather than swapped in for it. Coil decodes
         // and caches off the main thread, and anything that does not resolve — no photo, a

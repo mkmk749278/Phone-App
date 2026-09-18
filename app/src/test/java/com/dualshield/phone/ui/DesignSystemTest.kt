@@ -144,4 +144,43 @@ class DesignSystemTest {
             Spacing.listBottomInset.value >= 88f,
         )
     }
+
+    @Test
+    fun `no single-line label can silently drop a word`() {
+        // A Text with maxLines = 1 and soft wrapping on does not clip mid-word when it runs
+        // out of room — it drops the whole last word. On the Call details SIM buttons that
+        // turned "SIM 1 · Personal" into "SIM 1 ·": a dangling separator with empty space
+        // after it, indistinguishable from a label that failed to load, and invisible to
+        // every string-level test because the string was correct.
+        //
+        // Any single-line Text must therefore say what happens when it overflows.
+        val root = listOf(
+            File("src/main/java/com/dualshield/phone/ui"),
+            File("app/src/main/java/com/dualshield/phone/ui"),
+        ).first { it.isDirectory }
+
+        val offenders = root.walkTopDown()
+            .filter { it.extension == "kt" }
+            .flatMap { file ->
+                val lines = file.readLines()
+                lines.withIndex()
+                    .filter { (_, line) -> line.contains("maxLines = 1") }
+                    .filterNot { (i, _) ->
+                        // The policy may sit on any line of the same call.
+                        val window = lines.subList(
+                            maxOf(0, i - 6),
+                            minOf(lines.size, i + 7),
+                        ).joinToString("\n")
+                        window.contains("overflow") || window.contains("softWrap = false")
+                    }
+                    .map { (i, line) -> "${file.name}:${i + 1}: ${line.trim()}" }
+            }
+            .toList()
+
+        assertEquals(
+            "These single-line labels have no overflow policy and will drop a whole word",
+            emptyList<String>(),
+            offenders,
+        )
+    }
 }
